@@ -64,9 +64,16 @@
         }
         .score-text {
             font-size: 1.6rem;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             color: #bbb;
             text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+        .meta-text {
+            font-size: 1.2rem;
+            color: #ffaa00;
+            margin-bottom: 20px;
+            text-shadow: 0 0 8px rgba(255, 170, 0, 0.5);
+            font-weight: bold;
         }
         button {
             padding: 14px 35px;
@@ -90,6 +97,22 @@
             color: #fff;
             box-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
         }
+        
+        /* Zorluk Butonları Özel Neon Renkleri */
+        button.easy-btn {
+            background: #39ff14;
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.6);
+        }
+        button.normal-btn {
+            background: #00f2ff;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.6);
+        }
+        button.hard-btn {
+            background: #ff0055;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
+        }
+        
         #hud {
             position: absolute;
             top: 20px;
@@ -103,24 +126,83 @@
             font-size: 1.4rem;
             font-weight: bold;
             pointer-events: none;
+        }
+        #liveScore {
             text-shadow: 0 0 10px rgba(0,242,255,0.5);
+            color: #00f2ff;
+        }
+        #liveCoins {
+            text-shadow: 0 0 10px rgba(255,170,0,0.5);
+            color: #ffaa00;
+        }
+        
+        .shop-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab-btn {
+            padding: 8px 20px;
+            font-size: 0.9rem;
+            width: auto;
+            border-radius: 15px;
+            background: #222;
+            color: #888;
+            box-shadow: none;
+        }
+        .tab-btn.active {
+            background: #00f2ff;
+            color: #0c0c0e;
+            box-shadow: 0 0 10px #00f2ff;
+        }
+        .shop-content {
+            width: 90%;
+            max-height: 320px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         .shop-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 15px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            padding: 10px;
         }
         .shop-item {
-            width: 65px;
-            height: 65px;
+            position: relative;
+            width: 75px;
+            height: 75px;
             border: 3px solid #222;
             border-radius: 12px;
             cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #fff;
+            background: #151518;
         }
         .shop-item.active {
             border-color: #00f2ff;
             box-shadow: 0 0 15px #00f2ff;
+        }
+        .shop-item.locked::after {
+            content: attr(data-price) " 🪙";
+            position: absolute;
+            bottom: -18px;
+            font-size: 0.7rem;
+            color: #ffaa00;
+        }
+        .shop-item.purchased::after {
+            content: "AÇIK";
+            position: absolute;
+            bottom: -18px;
+            font-size: 0.65rem;
+            color: #39ff14;
         }
     </style>
 </head>
@@ -129,34 +211,51 @@
     <div id="gameContainer">
         <div id="hud">
             <div id="liveScore">Skor: 0</div>
+            <div id="liveCoins">🪙 0</div>
         </div>
 
         <canvas id="gameCanvas"></canvas>
 
         <div id="mainMenu" class="ui-screen">
+            <div id="menuStats" style="text-align: center; margin-bottom: 10px;">
+                <div id="menuBest" style="color: #00f2ff; font-weight: bold; text-shadow: 0 0 10px #00f2ff; font-size: 1.2rem; margin-bottom: 5px;">REKOR: 0</div>
+                <div id="menuCoins" style="color: #ffaa00; font-weight: bold; text-shadow: 0 0 10px #ffaa00; font-size: 1.1rem;">BAKİYE: 🪙 0</div>
+            </div>
             <h1>Neon Climb</h1>
-            <button id="startBtn">OYNA</button>
-            <button id="shopBtn" class="secondary">KÜP MARKETİ</button>
+            <button id="playMenuBtn">OYNA</button>
+            <button id="shopBtn" class="secondary">MARKET</button>
+        </div>
+
+        <div id="difficultyMenu" class="ui-screen hidden">
+            <h1 style="font-size: 2.2rem; color: #ffaa00; text-shadow: 0 0 15px #ffaa00;">ZORLUK SEÇ</h1>
+            <button id="easyBtn" class="easy-btn">KOLAY</button>
+            <button id="normalBtn" class="normal-btn">ORTA</button>
+            <button id="hardBtn" class="hard-btn">ZOR</button>
+            <button id="backToMainBtn" class="secondary" style="margin-top: 15px;">GERİ DÖN</button>
         </div>
 
         <div id="gameOverMenu" class="ui-screen hidden">
             <h1 style="text-shadow: 0 0 15px #ff0055; color: #ff0055;">ELENDİN!</h1>
             <div id="finalScore" class="score-text">Skor: 0</div>
+            <div id="gainedCoins" class="meta-text">Kazanılan: +🪙 0</div>
             <button id="restartBtn">TEKRAR OYNA</button>
             <button id="toMenuBtn" class="secondary">ANA MENÜ</button>
         </div>
 
         <div id="shopMenu" class="ui-screen hidden">
-            <h1>Küp Market</h1>
-            <div class="shop-grid">
-                <div class="shop-item active" data-color="#00f2ff" style="background: #00f2ff;"></div>
-                <div class="shop-item" data-color="#ff0055" style="background: #ff0055;"></div>
-                <div class="shop-item" data-color="#39ff14" style="background: #39ff14;"></div>
-                <div class="shop-item" data-color="#ffaa00" style="background: #ffaa00;"></div>
-                <div class="shop-item" data-color="#9d00ff" style="background: #9d00ff;"></div>
-                <div class="shop-item" data-color="#ffffff" style="background: #ffffff;"></div>
+            <h1>MARKET</h1>
+            <div id="shopBalance" style="color: #ffaa00; font-weight: bold; margin-bottom: 15px;">Bakiye: 🪙 0</div>
+            
+            <div class="shop-tabs">
+                <button id="tabCubes" class="tab-btn active">KÜPLER</button>
+                <button id="tabDecors" class="tab-btn">DEKORLAR</button>
             </div>
-            <button id="backToMenuBtn">GERİ DÖN</button>
+
+            <div class="shop-content">
+                <div id="cubesGrid" class="shop-grid"></div>
+                <div id="decorsGrid" class="shop-grid hidden"></div>
+            </div>
+            <button id="backToMenuBtn" style="margin-top: 15px;">GERİ DÖN</button>
         </div>
     </div>
 
