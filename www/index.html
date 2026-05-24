@@ -139,6 +139,53 @@
             color: #ffaa00;
         }
         
+        /* MACERA MODU SEVİYE SEÇİM EKSTRAMIZ */
+        .level-container {
+            width: 90%;
+            max-height: 450px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        .level-card {
+            height: 65px;
+            background: #151518;
+            border: 2px solid #333;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .level-card.unlocked {
+            border-color: #ffaa00;
+            color: #ffaa00;
+            box-shadow: 0 0 10px rgba(255, 170, 0, 0.2);
+        }
+        .level-card.unlocked:active {
+            transform: scale(0.9);
+        }
+        .level-card.current {
+            border-color: #39ff14;
+            color: #39ff14;
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.5);
+        }
+        .level-card.locked {
+            background: #0a0a0c;
+            border-color: #222;
+            color: #444;
+            cursor: not-allowed;
+        }
+
         .shop-tabs {
             display: flex;
             gap: 10px;
@@ -230,6 +277,14 @@
             <button id="shopBtn" class="secondary">MARKET</button>
         </div>
 
+        <div id="adventureMenu" class="ui-screen hidden">
+            <h1 style="font-size: 2.2rem; color: #ffaa00; text-shadow: 0 0 15px #ffaa00;">BÖLÜMLER</h1>
+            <div class="level-container">
+                <div id="levelGrid" class="level-grid"></div>
+            </div>
+            <button id="backFromAdventureBtn" class="secondary">GERİ DÖN</button>
+        </div>
+
         <div id="difficultyMenu" class="ui-screen hidden">
             <h1 style="font-size: 2.2rem; color: #00f2ff; text-shadow: 0 0 15px #00f2ff;">ZORLUK SEÇ</h1>
             <button id="easyBtn" class="easy-btn">KOLAY</button>
@@ -239,7 +294,7 @@
         </div>
 
         <div id="gameOverMenu" class="ui-screen hidden">
-            <h1 style="text-shadow: 0 0 15px #ff0055; color: #ff0055;">ELENDİN!</h1>
+            <h1 id="gameOverTitle" style="text-shadow: 0 0 15px #ff0055; color: #ff0055;">ELENDİN!</h1>
             <div id="finalScore" class="score-text">Skor: 0</div>
             <div id="gainedCoins" class="meta-text">Kazanılan: +🪙 0</div>
             <button id="restartBtn">TEKRAR OYNA</button>
@@ -265,6 +320,8 @@
 
     <script src="cubes_data.js"></script>
     <script src="decors_data.js"></script>
+    <script src="shop.js"></script>
+    <script src="adventure.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
