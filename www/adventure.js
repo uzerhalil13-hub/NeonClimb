@@ -39,8 +39,8 @@ function startAdventureLevel(levelNum) {
     adventureTargetScore = 25 + (selectedLevel - 1) * 15;
     
     if (typeof startGame === 'function') {
-        // game.js'e gidip oyun modunu ADVENTURE yapar. 
-        // game.js arka planda otomatik olarak Orta mod parametrelerini (4.5 hız ve ivme) kopyalayacaktır.
+        // game.js motoruna gidip oyunu başlatır.
+        // Hız sıfırlama, ivmelenme ve coin dizilimleri tamamen game.js içinden yönetilir.
         startGame('NORMAL', 'ADVENTURE');
     }
 }

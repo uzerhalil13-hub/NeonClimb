@@ -60,6 +60,18 @@ function playWinSound() {
     osc2.connect(gain2); gain2.connect(audioCtx.destination); osc2.start(now + 0.1); osc2.stop(now + 0.3);
 }
 
+function playCoinSound() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(987.77, audioCtx.currentTime); // B5 notası
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+}
+
 // --- KALICI HAFIZA ENTEGRASYONU ---
 let highScore = parseInt(localStorage.getItem('nc_highscore')) || 0;
 let totalCoins = parseInt(localStorage.getItem('nc_coins')) || 0;
@@ -78,14 +90,14 @@ let score = 0;
 let matchCoins = 0; 
 let worldOffset = 0;
 let gameSpeed = 4.5;
+let loopStarted = false; // Çift loop tetiklenmesini engelleyen kilit mekanizması
 
-// Macera moduna özel, her bölüm başında 4.5'e sıfırlanan dinamik hız takipçisi
 let adventureCurrentSpeed = 4.5; 
 
 let selectedDifficulty = 'NORMAL';
 const DIFFICULTY_SETTINGS = {
     EASY: { startSpeed: 3.5, acceleration: 0.0003, minGap: 190, maxGap: 300 },
-    NORMAL: { startSpeed: 4.5, acceleration: 0.0005, minGap: 160, maxGap: 280 }, // Macera modunun kopyaladığı parametreler
+    NORMAL: { startSpeed: 4.5, acceleration: 0.0005, minGap: 160, maxGap: 280 }, 
     ZOR: { startSpeed: 5.5, acceleration: 0.0008, minGap: 130, maxGap: 220 }
 };
 
@@ -178,7 +190,6 @@ let obstacles = [];
 let nextObstacleY = 0;
 
 function spawnObstacles() {
-    // Macera modundaysak engelleri ORTA zorluğa sabitle, değilse seçili zorluğu kullan
     let activeDiff = (gameMode === 'ADVENTURE') ? 'NORMAL' : selectedDifficulty;
     let diffSetting = DIFFICULTY_SETTINGS[activeDiff];
     
@@ -198,15 +209,89 @@ function spawnObstacles() {
     }
 }
 
+// --- DİNAMİK COIN (PARA) SİSTEMİ ---
+class Coin {
+    constructor(relativeY, side) {
+        this.relativeY = relativeY;
+        this.size = 14;
+        this.side = side;
+        this.collected = false;
+        // Küpün alabileceği duvar kenarlarına yakın konumlandırma
+        if (this.side === 'LEFT') {
+            this.x = WALL_LEFT + 25;
+        } else {
+            this.x = WALL_RIGHT() - 25;
+        }
+    }
+    getRealY() { return this.relativeY + worldOffset; }
+    draw() {
+        if (this.collected) return;
+        let realY = this.getRealY();
+        if (realY > -50 && realY < canvas.height + 50) {
+            ctx.save();
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = '#ffd700';
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(this.x, realY, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+}
+
+let coins = [];
+let nextCoinY = -300;
+
+function spawnCoins() {
+    // Sadece Macera Modunda fiziksel paralar üretilir
+    if (gameMode !== 'ADVENTURE') return;
+
+    while (nextCoinY > -worldOffset - canvas.height) {
+        // Aşırı sık olmaması için rastgele bir şans dengesi kuruyoruz (%40 şansla zincir başlar)
+        if (Math.random() < 0.4) {
+            let chosenSide = Math.random() > 0.5 ? 'LEFT' : 'RIGHT';
+            // İsteğe özel: 5'li dengeli ardışık para grubu (zincir) oluşturuluyor
+            for (let i = 0; i < 5; i++) {
+                coins.push(new Coin(nextCoinY - (i * 45), chosenSide));
+            }
+            nextCoinY -= 400; // İki grup arasında geniş ve dengeli boşluk bırakıyoruz
+        } else {
+            nextCoinY -= 150; // Boş geçilen mesafe adımı
+        }
+    }
+}
+
 function checkCollisions() {
     let px = player.x - player.size / 2; let py = player.y - player.size / 2;
     let pw = player.size; let ph = player.size;
+    
+    // Engel Çarpışmaları
     for (let obs of obstacles) {
         let oy = obs.getRealY();
         if (obs.side === 'LEFT') {
-            if (px < WALL_LEFT + obs.width && px + pw > WALL_LEFT && py + ph > oy && py < oy + obs.height) { endGame(); break; }
+            if (px < WALL_LEFT + obs.width && px + pw > WALL_LEFT && py + ph > oy && py < oy + obs.height) { endGame(); return; }
         } else {
-            if (px + pw > WALL_RIGHT() - obs.width && px < WALL_RIGHT() && py + ph > oy && py < oy + obs.height) { endGame(); break; }
+            if (px + pw > WALL_RIGHT() - obs.width && px < WALL_RIGHT() && py + ph > oy && py < oy + obs.height) { endGame(); return; }
+        }
+    }
+
+    // Macera Modu Canlı Coin Toplama Çarpışması
+    if (gameMode === 'ADVENTURE') {
+        for (let coin of coins) {
+            if (!coin.collected) {
+                let cy = coin.getRealY();
+                let distX = Math.abs(player.x - coin.x);
+                let distY = Math.abs(player.y - cy);
+                
+                // Basit ve hassas yarıçap/kutu çarpışma kontrolü
+                if (distX < (player.size / 2 + coin.size / 2) && distY < (player.size / 2 + coin.size / 2)) {
+                    coin.collected = true;
+                    matchCoins++;
+                    playCoinSound();
+                    updateHUD();
+                }
+            }
         }
     }
 }
@@ -254,37 +339,43 @@ function updateMenuUI() {
 function gameLoop() {
     ctx.fillStyle = '#0c0c0e'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawDecors();
+    
     if (gameState === 'PLAYING') {
-        
         if (gameMode === 'ADVENTURE') {
-            // MACERA MODU: Tamamen Orta mod parametre kopyasıyla çalışır
             worldOffset += adventureCurrentSpeed;
-            // Orta modun (NORMAL) ivmelenme değeri olan 0.0005 ile her karede hızlanır
             adventureCurrentSpeed += DIFFICULTY_SETTINGS['NORMAL'].acceleration; 
             
             score = Math.floor(worldOffset / 160);
-            matchCoins = Math.floor(score / 5);
-            updateHUD();
+            // Macera modunda matchCoins artık yola göre değil, elle toplanan paralara göre artıyor (updateHUD besliyor)
 
-            // Macera Modu Mesafe Kazanma Kontrolü
+            // Macera Modu Kazanma Kontrolü
             if (score >= adventureTargetScore) {
                 winAdventureLevel();
-                return;
             }
         } else {
-            // SONSUZ MOD: Menüden seçilen zorluğa (Kolay/Orta/Zor) göre tamamen bağımsız akar
             worldOffset += gameSpeed;
             gameSpeed += DIFFICULTY_SETTINGS[selectedDifficulty].acceleration; 
             
             score = Math.floor(worldOffset / 160);
-            matchCoins = Math.floor(score / 5);
+            matchCoins = Math.floor(score / 5); // Sonsuz mod geleneksel skor/5 formülünü koruyor
             updateHUD();
         }
 
-        spawnObstacles(); player.update(); checkCollisions();
+        spawnObstacles(); 
+        spawnCoins();
+        player.update(); 
+        checkCollisions();
+        
+        // Temizlik filtreleri
         obstacles = obstacles.filter(obs => obs.getRealY() < canvas.height + 100);
+        coins = coins.filter(c => c.getRealY() < canvas.height + 100);
     }
-    obstacles.forEach(obs => obs.draw()); player.draw();
+    
+    // Oyun bitse veya kazanılsa dahi nesneler render edilmeye devam eder (Küpün kaybolmama sırrı)
+    obstacles.forEach(obs => obs.draw()); 
+    coins.forEach(c => c.draw());
+    player.draw();
+    
     requestAnimationFrame(gameLoop);
 }
 
@@ -296,20 +387,30 @@ function startGame(diff, mode = 'INFINITE') {
     gameState = 'PLAYING';
     score = 0; matchCoins = 0; worldOffset = 0;
     consecutiveLeftCount = 0; consecutiveRightCount = 0;
+    obstacles = []; 
+    coins = [];
+    nextObstacleY = -200; 
+    nextCoinY = -300;
     
-    // Macera modu başladığında hız her zaman kopyalanan Orta mod başlangıç hızı olan 4.5'e kitlenir
     if (gameMode === 'ADVENTURE') {
-        adventureCurrentSpeed = DIFFICULTY_SETTINGS['NORMAL'].startSpeed; // Net olarak 4.5
+        adventureCurrentSpeed = DIFFICULTY_SETTINGS['NORMAL'].startSpeed; 
     } else {
-        gameSpeed = DIFFICULTY_SETTINGS[selectedDifficulty].startSpeed; // Sonsuz mod kendi hızıyla açılır
+        gameSpeed = DIFFICULTY_SETTINGS[selectedDifficulty].startSpeed; 
     }
     
-    nextObstacleY = -200; obstacles = []; player.init(); updateHUD();
+    player.init(); 
+    updateHUD();
     
     document.getElementById('mainMenu').classList.add('hidden');
     document.getElementById('difficultyMenu').classList.add('hidden');
     document.getElementById('adventureMenu').classList.add('hidden');
     document.getElementById('gameOverMenu').classList.add('hidden');
+    
+    // Motor kalbini yalnızca bir kere çalıştırır, çoklu döngü birikmesini önler
+    if (!loopStarted) {
+        loopStarted = true;
+        gameLoop();
+    }
 }
 
 function endGame() {
@@ -330,7 +431,7 @@ function endGame() {
 function winAdventureLevel() {
     gameState = 'WIN';
     playWinSound();
-    let bonus = matchCoins + 50; 
+    let bonus = matchCoins + 10; // Kazanma bonus ödülü isteğin doğrultusunda +10 coine çekildi!
     totalCoins += bonus;
     
     if (selectedLevel === currentLevel && currentLevel < 50) {
@@ -343,7 +444,7 @@ function winAdventureLevel() {
     title.innerText = 'BÖLÜM GEÇİLDİ!'; title.style.color = '#39ff14'; title.style.textShadow = '0 0 15px #39ff14';
 
     document.getElementById('finalScore').innerText = 'Skor: ' + score + ' / ' + adventureTargetScore;
-    document.getElementById('gainedCoins').innerText = 'Toplam Kazanç: +🪙 ' + bonus + ' (50 Bölüm Bonusu!)';
+    document.getElementById('gainedCoins').innerText = 'Toplam Kazanç: +🪙 ' + bonus + ' (10 Bölüm Bonusu!)';
     document.getElementById('gameOverMenu').classList.remove('hidden');
 }
 
@@ -385,45 +486,4 @@ document.getElementById('hardBtn').addEventListener('click', () => startGame('ZO
 
 document.getElementById('restartBtn').addEventListener('click', () => {
     if (gameMode === 'INFINITE') {
-        startGame(selectedDifficulty, 'INFINITE');
-    } else {
-        if (typeof startAdventureLevel === 'function') startAdventureLevel(selectedLevel);
-    }
-});
-
-document.getElementById('toMenuBtn').addEventListener('click', () => {
-    initAudio(); document.getElementById('gameOverMenu').classList.add('hidden');
-    document.getElementById('mainMenu').classList.remove('hidden');
-    gameState = 'MENU'; updateMenuUI();
-});
-
-document.getElementById('shopBtn').addEventListener('click', () => {
-    initAudio(); document.getElementById('mainMenu').classList.add('hidden');
-    document.getElementById('shopMenu').classList.remove('hidden');
-    if (typeof buildShopUI === 'function') buildShopUI();
-    updateMenuUI();
-});
-
-document.getElementById('backToMenuBtn').addEventListener('click', () => {
-    initAudio(); document.getElementById('shopMenu').classList.add('hidden');
-    document.getElementById('mainMenu').classList.remove('hidden');
-    updateMenuUI();
-});
-
-document.getElementById('tabCubes').addEventListener('click', () => {
-    initAudio(); document.getElementById('tabCubes').classList.add('active');
-    document.getElementById('tabDecors').classList.remove('active');
-    document.getElementById('cubesGrid').classList.remove('hidden');
-    document.getElementById('decorsGrid').classList.add('hidden');
-});
-
-document.getElementById('tabDecors').addEventListener('click', () => {
-    initAudio(); document.getElementById('tabDecors').classList.add('active');
-    document.getElementById('tabCubes').classList.remove('active');
-    document.getElementById('decorsGrid').classList.remove('hidden');
-    document.getElementById('cubesGrid').classList.add('hidden');
-});
-
-// Sistem Başlangıcı
-updateMenuUI();
-gameLoop();
+        startGame(selectedDifficulty, 
