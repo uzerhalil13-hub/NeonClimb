@@ -97,8 +97,11 @@
             color: #fff;
             box-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
         }
-        
-        /* Zorluk Butonları Özel Neon Renkleri */
+        button.adventure-btn {
+            background: #ffaa00;
+            color: #0c0c0e;
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.6);
+        }
         button.easy-btn {
             background: #39ff14;
             box-shadow: 0 0 15px rgba(57, 255, 20, 0.6);
@@ -222,12 +225,13 @@
                 <div id="menuCoins" style="color: #ffaa00; font-weight: bold; text-shadow: 0 0 10px #ffaa00; font-size: 1.1rem;">BAKİYE: 🪙 0</div>
             </div>
             <h1>Neon Climb</h1>
-            <button id="playMenuBtn">OYNA</button>
+            <button id="playMenuBtn">SONSUZ MOD</button>
+            <button id="adventureMenuBtn" class="adventure-btn">MACERA MODU</button>
             <button id="shopBtn" class="secondary">MARKET</button>
         </div>
 
         <div id="difficultyMenu" class="ui-screen hidden">
-            <h1 style="font-size: 2.2rem; color: #ffaa00; text-shadow: 0 0 15px #ffaa00;">ZORLUK SEÇ</h1>
+            <h1 style="font-size: 2.2rem; color: #00f2ff; text-shadow: 0 0 15px #00f2ff;">ZORLUK SEÇ</h1>
             <button id="easyBtn" class="easy-btn">KOLAY</button>
             <button id="normalBtn" class="normal-btn">ORTA</button>
             <button id="hardBtn" class="hard-btn">ZOR</button>
@@ -259,6 +263,8 @@
         </div>
     </div>
 
+    <script src="cubes_data.js"></script>
+    <script src="decors_data.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

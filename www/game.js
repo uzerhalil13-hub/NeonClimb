@@ -8,6 +8,81 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
+// --- SAF SÖZÜKSEL SES MOTORU (WEB AUDIO API) ---
+let audioCtx = null;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+// 1. TÜM MODLARDA DUVARA ÇARPMA SESİ (Kısa, net ve dijital siber tık)
+function playHitSound() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.type = 'triangle'; 
+    osc.frequency.setValueAtTime(160, audioCtx.currentTime); 
+    
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime); 
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.07); 
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.07);
+}
+
+// 2. TÜM MODLARDA ELENDİN / YANMA SESİ (Aşağı doğru sönen dijital lazer patlaması)
+function playExplosionSound() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.type = 'sawtooth'; 
+    osc.frequency.setValueAtTime(280, audioCtx.currentTime); 
+    osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.35); 
+    
+    gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.35);
+}
+
+// 3. MACERA MODUNA ÖZEL KAZANMA SESİ (Peş peşe tetiklenen coşkulu iki siber nota)
+function playWinSound() {
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'square';
+    osc1.frequency.setValueAtTime(523.25, now); 
+    gain1.gain.setValueAtTime(0.2, now);
+    gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc1.connect(gain1); gain1.connect(audioCtx.destination);
+    osc1.start(now); osc1.stop(now + 0.1);
+    
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(659.25, now + 0.1); 
+    gain2.gain.setValueAtTime(0.2, now + 0.1);
+    gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    osc2.connect(gain2); gain2.connect(audioCtx.destination);
+    osc2.start(now + 0.1); osc2.stop(now + 0.3);
+}
+
 // --- KALICI VERİLER (LOCALSTORAGE) ---
 let highScore = parseInt(localStorage.getItem('nc_highscore')) || 0;
 let totalCoins = parseInt(localStorage.getItem('nc_coins')) || 0;
@@ -20,6 +95,7 @@ function saveGameData() {
 }
 
 let gameState = 'MENU';
+let gameMode = 'INFINITE'; // 'INFINITE' veya 'ADVENTURE'
 let score = 0;
 let matchCoins = 0; 
 let worldOffset = 0;
@@ -41,29 +117,6 @@ let currentDecor = 'default';
 const WALL_LEFT = 35;
 const WALL_RIGHT = () => canvas.width - 35;
 
-// --- MARKET VERİLERİ ---
-const CUBES_DATA = [
-    { id: 'c_classic_#00f2ff', type: 'classic', color: '#00f2ff', price: 5, label: 'Klasik Mavi' },
-    { id: 'c_classic_#ff0055', type: 'classic', color: '#ff0055', price: 5, label: 'Klasik Pembe' },
-    { id: 'c_classic_#39ff14', type: 'classic', color: '#39ff14', price: 5, label: 'Klasik Yeşil' },
-    { id: 'c_classic_#ffaa00', type: 'classic', color: '#ffaa00', price: 5, label: 'Klasik Turuncu' },
-    { id: 'c_classic_#9d00ff', type: 'classic', color: '#9d00ff', price: 5, label: 'Klasik Mor' },
-    { id: 'c_classic_#ffffff', type: 'classic', color: '#ffffff', price: 5, label: 'Klasik Beyaz' },
-    
-    { id: 'c_smiley_#00f2ff', type: 'smiley', color: '#00f2ff', price: 10, label: 'Gülen Mavi' },
-    { id: 'c_smiley_#ff0055', type: 'smiley', color: '#ff0055', price: 10, label: 'Gülen Pembe' },
-    { id: 'c_smiley_#39ff14', type: 'smiley', color: '#39ff14', price: 10, label: 'Gülen Yeşil' },
-    { id: 'c_smiley_#ffaa00', type: 'smiley', color: '#ffaa00', price: 10, label: 'Gülen Turuncu' },
-    { id: 'c_smiley_#9d00ff', type: 'smiley', color: '#9d00ff', price: 10, label: 'Gülen Mor' }
-];
-
-const DECORS_DATA = [
-    { id: 'd_default', key: 'default', label: 'Neon Çizgi', price: 0 },
-    { id: 'd_rock', key: 'rock', label: 'Kaya Teması', price: 15 },
-    { id: 'd_cyber', key: 'cyber', label: 'Siber Tuğla', price: 25 },
-    { id: 'd_matrix', key: 'matrix', label: 'Matrix Akış', price: 40 }
-];
-
 const player = {
     x: 0,
     y: 0,
@@ -72,13 +125,17 @@ const player = {
     speed: 14, 
     side: 'RIGHT', 
     lastTurnTime: 0,
+    angle: 0,     
+    startX: 0,    
     
     init() {
         this.y = canvas.height * 0.7; 
         this.side = 'RIGHT';
         this.x = WALL_RIGHT() - this.size / 2;
         this.targetX = this.x;
+        this.startX = this.x;
         this.lastTurnTime = 0;
+        this.angle = 0;
     },
     
     update() {
@@ -86,30 +143,41 @@ const player = {
             let diff = this.targetX - this.x;
             if (Math.abs(diff) < this.speed) {
                 this.x = this.targetX;
+                this.angle = 0; 
+                playHitSound(); // Hedefe ulaştığı (Duvara vurduğu) an tık sesi tetiklenir
             } else {
                 this.x += Math.sign(diff) * this.speed;
+                
+                let totalDistance = Math.abs(this.targetX - this.startX);
+                if (totalDistance > 0) {
+                    let progress = Math.abs(this.x - this.startX) / totalDistance;
+                    let direction = this.targetX > this.startX ? 1 : -1;
+                    this.angle = progress * (Math.PI / 2) * direction; 
+                }
             }
         }
     },
     
     draw() {
         ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        
         ctx.shadowBlur = 18;
         ctx.shadowColor = playerColor;
         ctx.fillStyle = playerColor;
         
-        let rx = this.x - this.size / 2;
-        let ry = this.y - this.size / 2;
-        ctx.fillRect(rx, ry, this.size, this.size);
+        let halfSize = this.size / 2;
+        ctx.fillRect(-halfSize, -halfSize, this.size, this.size);
         
         if (playerShape === 'smiley') {
             ctx.fillStyle = '#0c0c0e';
-            ctx.fillRect(rx + 5, ry + 6, 3, 4);
-            ctx.fillRect(rx + 16, ry + 6, 3, 4);
+            ctx.fillRect(-halfSize + 5, -halfSize + 6, 3, 4);
+            ctx.fillRect(-halfSize + 16, -halfSize + 6, 3, 4);
             ctx.strokeStyle = '#0c0c0e';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(rx + 12, ry + 13, 5, 0, Math.PI, false);
+            ctx.arc(-halfSize + 12, -halfSize + 13, 5, 0, Math.PI, false);
             ctx.stroke();
         }
         ctx.restore();
@@ -121,6 +189,7 @@ const player = {
             return; 
         }
         this.lastTurnTime = currentTime;
+        this.startX = this.x; 
 
         if (this.side === 'RIGHT') {
             this.side = 'LEFT';
@@ -132,12 +201,38 @@ const player = {
     }
 };
 
+let consecutiveLeftCount = 0;
+let consecutiveRightCount = 0;
+
 class Obstacle {
     constructor(relativeY) {
         this.relativeY = relativeY;
         this.width = 30; 
         this.height = 20; 
-        this.side = Math.random() > 0.5 ? 'LEFT' : 'RIGHT';
+        
+        let chosenSide = Math.random() > 0.5 ? 'LEFT' : 'RIGHT';
+        
+        if (chosenSide === 'LEFT') {
+            if (consecutiveLeftCount >= 3) {
+                chosenSide = 'RIGHT';
+                consecutiveLeftCount = 0;
+                consecutiveRightCount = 1;
+            } else {
+                consecutiveLeftCount++;
+                consecutiveRightCount = 0;
+            }
+        } else {
+            if (consecutiveRightCount >= 3) {
+                chosenSide = 'LEFT';
+                consecutiveRightCount = 0;
+                consecutiveLeftCount = 1;
+            } else {
+                consecutiveRightCount++;
+                consecutiveLeftCount = 0;
+            }
+        }
+        
+        this.side = chosenSide;
     }
     getRealY() { return this.relativeY + worldOffset; }
     draw() {
@@ -169,7 +264,6 @@ function spawnObstacles() {
     let diffSetting = DIFFICULTY_SETTINGS[selectedDifficulty];
     while (nextObstacleY > -worldOffset - canvas.height) {
         obstacles.push(new Obstacle(nextObstacleY));
-        // Zorluğa göre dinamik aralık belirleme matematiği
         let gap = Math.random() * (diffSetting.maxGap - diffSetting.minGap) + diffSetting.minGap;
         nextObstacleY -= gap; 
     }
@@ -269,9 +363,10 @@ function gameLoop() {
         let currentDiffConfig = DIFFICULTY_SETTINGS[selectedDifficulty];
         
         worldOffset += gameSpeed;
-        gameSpeed += currentDiffConfig.acceleration; // Seçilen zorluğun ivmesi
+        if (gameMode === 'INFINITE') {
+            gameSpeed += currentDiffConfig.acceleration; 
+        }
         score = Math.floor(worldOffset / 160);
-        
         matchCoins = Math.floor(score / 5);
         
         updateHUD();
@@ -287,14 +382,17 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-function startGame(diff) {
+function startGame(diff, mode = 'INFINITE') {
+    initAudio(); // Kullanıcı ekrana dokunduğu an ses motorunu canlandırıyoruz
     selectedDifficulty = diff;
+    gameMode = mode;
     gameState = 'PLAYING';
     score = 0;
     matchCoins = 0;
     worldOffset = 0;
+    consecutiveLeftCount = 0;
+    consecutiveRightCount = 0;
     
-    // Zorluğa göre başlangıç hız ayarı yükleme
     gameSpeed = DIFFICULTY_SETTINGS[selectedDifficulty].startSpeed;
     
     nextObstacleY = -200;
@@ -309,8 +407,10 @@ function startGame(diff) {
 
 function endGame() {
     gameState = 'GAMEOVER';
+    playExplosionSound(); // Elenme anında lazer patlama sesi çalar
+    
     totalCoins += matchCoins;
-    if (score > highScore) {
+    if (gameMode === 'INFINITE' && score > highScore) {
         highScore = score;
     }
     saveGameData();
@@ -364,6 +464,7 @@ function buildShopUI() {
 }
 
 function handleShopClick(product, category) {
+    initAudio();
     if (unlockedItems.includes(product.id)) {
         if (category === 'cube') {
             playerColor = product.color;
@@ -389,36 +490,46 @@ function handleShopClick(product, category) {
     saveGameData(); updateMenuUI(); buildShopUI();
 }
 
-// --- DOKUNMATİK EKREAN TETİKLEYİCİLERİ ---
+// --- DOKUNMATİK EKRAN TETİKLEYİCİLERİ ---
 window.addEventListener('touchstart', (e) => {
+    initAudio();
     if (gameState === 'PLAYING') {
         player.changeSide(); e.preventDefault();
     }
 }, { passive: false });
 
 window.addEventListener('mousedown', () => {
+    initAudio();
     if (gameState === 'PLAYING') player.changeSide();
 });
 
 // --- UI BUTON DİNLEYİCİLERİ ---
 document.getElementById('playMenuBtn').addEventListener('click', () => {
+    initAudio();
     document.getElementById('mainMenu').classList.add('hidden');
     document.getElementById('difficultyMenu').classList.remove('hidden');
 });
 
+document.getElementById('adventureMenuBtn').addEventListener('click', () => {
+    initAudio();
+    // Macera Modu tıklandığında doğrudan orta zorluk seviyesinde başlatıyoruz (Şimdilik altyapı hazırlığı)
+    startGame('NORMAL', 'ADVENTURE');
+});
+
 document.getElementById('backToMainBtn').addEventListener('click', () => {
+    initAudio();
     document.getElementById('difficultyMenu').classList.add('hidden');
     document.getElementById('mainMenu').classList.remove('hidden');
 });
 
-// Zorluk Seçim Tetikleyicileri
-document.getElementById('easyBtn').addEventListener('click', () => startGame('EASY'));
-document.getElementById('normalBtn').addEventListener('click', () => startGame('NORMAL'));
-document.getElementById('hardBtn').addEventListener('click', () => startGame('ZOR'));
+document.getElementById('easyBtn').addEventListener('click', () => startGame('EASY', 'INFINITE'));
+document.getElementById('normalBtn').addEventListener('click', () => startGame('NORMAL', 'INFINITE'));
+document.getElementById('hardBtn').addEventListener('click', () => startGame('ZOR', 'INFINITE'));
 
-document.getElementById('restartBtn').addEventListener('click', () => startGame(selectedDifficulty));
+document.getElementById('restartBtn').addEventListener('click', () => startGame(selectedDifficulty, gameMode));
 
 document.getElementById('toMenuBtn').addEventListener('click', () => {
+    initAudio();
     document.getElementById('gameOverMenu').classList.add('hidden');
     document.getElementById('mainMenu').classList.remove('hidden');
     gameState = 'MENU';
@@ -426,18 +537,21 @@ document.getElementById('toMenuBtn').addEventListener('click', () => {
 });
 
 document.getElementById('shopBtn').addEventListener('click', () => {
+    initAudio();
     document.getElementById('mainMenu').classList.add('hidden');
     document.getElementById('shopMenu').classList.remove('hidden');
     buildShopUI(); updateMenuUI();
 });
 
 document.getElementById('backToMenuBtn').addEventListener('click', () => {
+    initAudio();
     document.getElementById('shopMenu').classList.add('hidden');
     document.getElementById('mainMenu').classList.remove('hidden');
     updateMenuUI();
 });
 
 document.getElementById('tabCubes').addEventListener('click', () => {
+    initAudio();
     document.getElementById('tabCubes').classList.add('active');
     document.getElementById('tabDecors').classList.remove('active');
     document.getElementById('cubesGrid').classList.remove('hidden');
@@ -445,6 +559,7 @@ document.getElementById('tabCubes').addEventListener('click', () => {
 });
 
 document.getElementById('tabDecors').addEventListener('click', () => {
+    initAudio();
     document.getElementById('tabDecors').classList.add('active');
     document.getElementById('tabCubes').classList.remove('active');
     document.getElementById('decorsGrid').classList.remove('hidden');
