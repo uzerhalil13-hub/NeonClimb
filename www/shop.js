@@ -1,15 +1,17 @@
 // shop.js - Ortak Hafıza, Dinamik Mağaza ve Arayüz Yönetim Merkezi
 
-// --- GÜVENLİ SES BAŞLATICI EMÜLATÖRÜ (initAudio Kilitlenme Hatasını Çözer) ---
+// --- GÜVENLİ SES BAŞLATICI EMÜLATÖRÜ ---
 function initAudio() {
-    // İleride ses kütüphanesi eklediğinde burası dolacak, şimdilik butonları patlatmasın diye boş bırakıldı.
     console.log("HiGames Ses Sistemi Aktif.");
 }
+
+// Global Canvas ve Context Referansları (Tüm dosyalarda ortak kullanılır)
+let canvas, ctx;
 
 // --- 1. GLOBAL PARAMETRELER VE ZORLUK AYARLARI (TURNUVA STANDARTI) ---
 const DIFFICULTY_SETTINGS = {
     'EASY':   { startSpeed: 3.5, acceleration: 0.0002, minGap: 200, maxGap: 320 },
-    'NORMAL': { startSpeed: 4.5, acceleration: 0.0005, minGap: 160, maxGap: 280 }, // Turnuva ve Macera Standardı
+    'NORMAL': { startSpeed: 4.5, acceleration: 0.0005, minGap: 160, maxGap: 280 }, 
     'ZOR':    { startSpeed: 5.5, acceleration: 0.0009, minGap: 120, maxGap: 220 }
 };
 
@@ -17,18 +19,14 @@ const DIFFICULTY_SETTINGS = {
 let highScore = parseInt(localStorage.getItem('nc_highscore')) || 0;
 let totalCoins = parseInt(localStorage.getItem('nc_coins')) || 0;
 
-// İlk açılışta varsayılan küp ve temanın kilitlerini aç
 let unlockedItems = JSON.parse(localStorage.getItem('nc_unlocked')) || ['c_classic_#00f2ff', 'd_default'];
 let currentCube = localStorage.getItem('nc_currentcube') || 'c_classic_#00f2ff';
-let currentDecor = localStorage.getItem('nc_currentdecor') || 'default'; // default, rock, cyber, matrix tutar
+let currentDecor = localStorage.getItem('nc_currentdecor') || 'default'; 
 
-// Küpün anlık şekil ve renk parametreleri (Varsayılan değerler)
 let playerShape = 'classic';
 let playerColor = '#00f2ff';
 
-// Dışarıdaki dosyalardan gelen verilere göre oyuncu görüntüsünü dinamik senkronize etme
 function syncPlayerSkin() {
-    // Eğer cubes_data.js yüklendiyse oradan ara, yoksa varsayılan atar
     if (typeof CUBES_DATA !== 'undefined') {
         const activeCube = CUBES_DATA.find(c => c.id === currentCube) || CUBES_DATA[0];
         playerShape = activeCube.type;
@@ -44,11 +42,11 @@ let matchCoins = 0;
 let worldOffset = 0;
 let gameSpeed = 4.5;
 let loopStarted = false;
-let adventureLoopStarted = false; // Macera için ayrı döngü kontrolü
+let adventureLoopStarted = false; 
 let adventureCurrentSpeed = 4.5;
 
 const WALL_LEFT = 35;
-const WALL_RIGHT = () => canvas.width - 35;
+const WALL_RIGHT = () => (canvas ? canvas.width : 480) - 35;
 
 function saveGameData() {
     localStorage.setItem('nc_highscore', highScore);
@@ -56,11 +54,54 @@ function saveGameData() {
     localStorage.setItem('nc_unlocked', JSON.stringify(unlockedItems));
 }
 
-// --- 3. HUD ARAYÜZ METİNLERİNİ GÜNCELLEME FONKSİYONU ---
+// --- 3. OYUNCU (PLAYER) SINIFI VE NESNESİ ---
+class GamePlayer {
+    constructor() {
+        this.size = 24;
+        this.init();
+    }
+    init() {
+        this.x = (canvas ? canvas.width : 480) / 2;
+        this.y = (canvas ? canvas.height : 800) - 150;
+        this.targetX = this.x;
+        this.angle = 0;
+    }
+    update() {
+        // Yumuşak dokunmatik takip fiziği
+        this.x += (this.targetX - this.x) * 0.25;
+        
+        // Harekete duyarlı dinamik neon açısı yay efekti
+        let diff = this.targetX - this.x;
+        this.angle = diff * 0.04;
+    }
+    draw() {
+        if (!ctx) return;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = playerColor;
+        ctx.fillStyle = playerColor;
+        
+        if (playerShape === 'classic') {
+            ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+        } else {
+            // Alternatif küre/yuvarlak tasarımlar için taban çizim motoru
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+// Global oyuncu tetikleyicisi
+const player = new GamePlayer();
+
+// --- 4. HUD ARAYÜZ METİNLERİNİ GÜNCELLEME FONKSİYONU ---
 function updateHUD() {
     const scoreDiv = document.getElementById('liveScore');
     const coinsDiv = document.getElementById('liveCoins');
-    
     if (!scoreDiv || !coinsDiv) return;
 
     if (gameMode === 'INFINITE') {
@@ -78,9 +119,10 @@ function updateMenuUI() {
     document.getElementById('shopBalance').innerText = 'Bakiye: 🪙 ' + totalCoins;
 }
 
-// --- 4. ARKA PLAN DEKOR ÇİZİM MOTORU ---
+// --- 5. ARKA PLAN DEKOR ÇİZİM MOTORU ---
 let matrixY = 0;
 function drawDecors() {
+    if (!ctx || !canvas) return;
     ctx.save();
     if (currentDecor === 'default') {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)'; ctx.lineWidth = 1;
@@ -100,7 +142,7 @@ function drawDecors() {
         ctx.shadowBlur = 10; ctx.shadowColor = '#00f2ff';
         ctx.strokeStyle = 'rgba(0, 242, 255, 0.4)'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.moveTo(WALL_LEFT, 0); ctx.lineTo(WALL_LEFT, canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(WALL_RIGHT(), 0); ctx.lineTo(WALL_RIGHT(), canvas.height); stroke();
+        ctx.beginPath(); ctx.moveTo(WALL_RIGHT(), 0); ctx.lineTo(WALL_RIGHT(), canvas.height); ctx.stroke(); // DÜZELTME: Kilitlenmeye sebep olan eksik ctx. eklendi
     } 
     else if (currentDecor === 'matrix') {
         ctx.fillStyle = 'rgba(57, 255, 20, 0.15)'; ctx.font = '10px monospace';
@@ -112,17 +154,17 @@ function drawDecors() {
         }
     }
     
-    // Güvenli Yan Duvar Çizgileri
     ctx.shadowBlur = 0; ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(WALL_LEFT, 0); ctx.lineTo(WALL_LEFT, canvas.height); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(WALL_RIGHT(), 0); ctx.lineTo(WALL_RIGHT(), canvas.height); ctx.stroke();
     ctx.restore();
 }
 
-// --- 5. TAMAMEN DİNAMİK MAĞAZA (SHOP) OLUŞTURMA MOTORU ---
+// --- 6. TAMAMEN DİNAMİK MAĞAZA (SHOP) OLUŞTURMA MOTORU ---
 function buildShopGrids() {
     const cubesGrid = document.getElementById('cubesGrid');
     const decorsGrid = document.getElementById('decorsGrid');
+    if (!cubesGrid || !decorsGrid) return;
     cubesGrid.innerHTML = ''; decorsGrid.innerHTML = '';
 
     if (typeof CUBES_DATA !== 'undefined') {
@@ -193,7 +235,7 @@ function handleShopClick(item, type) {
     buildShopGrids();
 }
 
-// --- 6. BUTON OLAY DİNLEYİCİLERİ ---
+// --- 7. BUTON OLAY DİNLEYİCİLERİ ---
 document.getElementById('shopBtn').addEventListener('click', () => {
     initAudio(); updateMenuUI(); buildShopGrids();
     document.getElementById('mainMenu').classList.add('hidden');
@@ -216,13 +258,26 @@ document.getElementById('tabDecors').addEventListener('click', () => {
     document.getElementById('decorsGrid').classList.remove('hidden'); document.getElementById('cubesGrid').classList.add('hidden');
 });
 
-// İlk açılışta verileri ve Canvas kararlılığını senkronize etme tetikleyicisi
+// Canvas kararlılığını senkronize etme tetikleyicisi
 window.addEventListener('DOMContentLoaded', () => {
-    const canvasObj = document.getElementById('gameCanvas');
-    if (canvasObj) {
-        // Ekran koruyucu güvenliği için boyut ataması yapılıyor
-        canvasObj.width = canvasObj.parentElement.clientWidth || 480;
-        canvasObj.height = canvasObj.parentElement.clientHeight || 800;
+    canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+        ctx = canvas.getContext('2d');
+        canvas.width = canvas.parentElement.clientWidth || 480;
+        canvas.height = canvas.parentElement.clientHeight || 800;
+        
+        // Parmak/Mouse takip motoru bağlantısı
+        const handleMove = (e) => {
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let rect = canvas.getBoundingClientRect();
+            let relativeX = clientX - rect.left;
+            
+            if (relativeX < WALL_LEFT + player.size/2) relativeX = WALL_LEFT + player.size/2;
+            if (relativeX > WALL_RIGHT() - player.size/2) relativeX = WALL_RIGHT() - player.size/2;
+            player.targetX = relativeX;
+        };
+        canvas.addEventListener('mousemove', handleMove);
+        canvas.addEventListener('touchmove', handleMove, { passive: true });
     }
     syncPlayerSkin();
     updateMenuUI();
