@@ -2,326 +2,315 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Neon Climb</title>
+    <link rel="stylesheet" href="splash.css">
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
+        * { 
+            box-sizing: border-box; 
+            user-select: none; 
+            -webkit-user-select: none; 
+            margin: 0; 
+            padding: 0; 
+            /* Mobilde basılı tutunca veya tıklayınca çıkan o çirkin mavi/gri dikdörtgeni kaldırır */
+            -webkit-tap-highlight-color: transparent; 
         }
-        body {
-            background-color: #0c0c0e;
-            font-family: sans-serif;
-            overflow: hidden;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+        body, html { width: 100%; height: 100%; background-color: #0c0c0e; font-family: 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
+        
         #gameContainer {
             position: relative;
             width: 100%;
             height: 100%;
-            max-width: 450px;
-            max-height: 850px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.7);
-        }
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
+            max-width: 480px;
+            margin: 0 auto;
             background: #0c0c0e;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
         }
-        .ui-screen {
+
+        canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: rgba(12, 12, 14, 0.85);
-            backdrop-filter: blur(5px);
-            z-index: 10;
-            color: #fff;
+            display: block;
+            z-index: 1;
         }
-        .hidden {
-            display: none !important;
-        }
-        h1 {
-            font-size: 2.8rem;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            text-shadow: 0 0 15px #00f2ff;
-            color: #00f2ff;
-        }
-        .score-text {
-            font-size: 1.6rem;
-            margin-bottom: 15px;
-            color: #bbb;
-            text-shadow: 0 0 10px rgba(255,255,255,0.3);
-        }
-        .meta-text {
-            font-size: 1.2rem;
-            color: #ffaa00;
-            margin-bottom: 20px;
-            text-shadow: 0 0 8px rgba(255, 170, 0, 0.5);
-            font-weight: bold;
-        }
-        button {
-            padding: 14px 35px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #0c0c0e;
-            background: #00f2ff;
-            border: none;
-            border-radius: 30px;
-            cursor: pointer;
-            margin: 10px;
-            width: 220px;
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.6);
-            transition: transform 0.1s;
-        }
-        button:active {
-            transform: scale(0.95);
-        }
-        button.secondary {
-            background: #ff0055;
-            color: #fff;
-            box-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
-        }
-        button.adventure-btn {
-            background: #ffaa00;
-            color: #0c0c0e;
-            box-shadow: 0 0 15px rgba(255, 170, 0, 0.6);
-        }
-        button.easy-btn {
-            background: #39ff14;
-            box-shadow: 0 0 15px rgba(57, 255, 20, 0.6);
-        }
-        button.normal-btn {
-            background: #00f2ff;
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.6);
-        }
-        button.hard-btn {
-            background: #ff0055;
-            color: #fff;
-            box-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
-        }
-        
+
+        /* HUD Arayüzü */
         #hud {
             position: absolute;
-            top: 20px;
+            top: 15px;
             left: 0;
             width: 100%;
             display: flex;
             justify-content: space-between;
-            padding: 0 25px;
-            z-index: 5;
-            color: #fff;
-            font-size: 1.4rem;
-            font-weight: bold;
+            padding: 0 20px;
+            z-index: 10;
             pointer-events: none;
         }
-        #liveScore {
-            text-shadow: 0 0 10px rgba(0,242,255,0.5);
-            color: #00f2ff;
+        .hud-text {
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(255,255,255,0.6);
+            font-family: monospace;
         }
-        #liveCoins {
-            text-shadow: 0 0 10px rgba(255,170,0,0.5);
-            color: #ffaa00;
+        #liveScore { color: #00f2ff; text-shadow: 0 0 10px #00f2ff; }
+        #liveCoins { color: #ffd700; text-shadow: 0 0 10px #ffd700; }
+
+        /* Ortak Menü Tasarımları */
+        .menu-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(12, 12, 14, 0.85);
+            backdrop-filter: blur(6px);
+            padding: 30px;
+            transition: opacity 0.25s ease;
+        }
+        .hidden { display: none !important; opacity: 0; pointer-events: none; }
+
+        h1 {
+            font-size: 42px;
+            color: #00f2ff;
+            text-shadow: 0 0 20px #00f2ff;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        .sub-title { color: #aaa; font-size: 14px; margin-bottom: 40px; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* ANA BUTONLAR VE BASILMA (FEEL) EFEKTLERİ */
+        .btn {
+            width: 85%;
+            max-width: 280px;
+            padding: 15px 20px;
+            margin: 10px 0;
+            background: transparent;
+            border: 2px solid #00f2ff;
+            color: #00f2ff;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,242,255,0.1);
+            outline: none; /* Odaklanma çizgisini siler */
+            transition: transform 0.1s ease, background 0.1s ease, box-shadow 0.1s ease; /* Yumuşak tepki yay efekti */
+            text-align: center;
+        }
+        /* Dokunulduğu (Basıldığı) An Tetiklenen Yay ve Yoğun Neon Parlama Efekti */
+        .btn:active { 
+            background: rgba(0, 242, 255, 0.15); 
+            color: #00f2ff; 
+            box-shadow: 0 0 25px #00f2ff; 
+            transform: scale(0.95); /* Buton içeri doğru yay gibi çöker */
         }
         
-        /* MACERA MODU SEVİYE SEÇİM EKSTRAMIZ */
-        .level-container {
-            width: 90%;
-            max-height: 450px;
-            overflow-y: auto;
-            padding: 10px;
-            margin-bottom: 15px;
-        }
-        .level-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-        }
-        .level-card {
-            height: 65px;
-            background: #151518;
-            border: 2px solid #333;
-            border-radius: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #888;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .level-card.unlocked {
-            border-color: #ffaa00;
-            color: #ffaa00;
-            box-shadow: 0 0 10px rgba(255, 170, 0, 0.2);
-        }
-        .level-card.unlocked:active {
-            transform: scale(0.9);
-        }
-        .level-card.current {
-            border-color: #39ff14;
-            color: #39ff14;
-            box-shadow: 0 0 15px rgba(57, 255, 20, 0.5);
-        }
-        .level-card.locked {
-            background: #0a0a0c;
-            border-color: #222;
-            color: #444;
-            cursor: not-allowed;
+        /* Tehlike/İptal Butonları */
+        .btn-danger { border-color: #ff0055; color: #ff0055; box-shadow: 0 0 10px rgba(255,0,85,0.1); }
+        .btn-danger:active { 
+            background: rgba(255, 0, 85, 0.15); 
+            color: #ff0055; 
+            box-shadow: 0 0 25px #ff0055; 
+            transform: scale(0.95); 
         }
 
-        .shop-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+        /* Başarı/Macera Butonları */
+        .btn-success { border-color: #39ff14; color: #39ff14; box-shadow: 0 0 10px rgba(57,255,20,0.1); }
+        .btn-success:active { 
+            background: rgba(57, 255, 20, 0.15); 
+            color: #39ff14; 
+            box-shadow: 0 0 25px #39ff14; 
+            transform: scale(0.95); 
         }
-        .tab-btn {
-            padding: 8px 20px;
-            font-size: 0.9rem;
-            width: auto;
-            border-radius: 15px;
-            background: #222;
-            color: #888;
-            box-shadow: none;
-        }
-        .tab-btn.active {
-            background: #00f2ff;
-            color: #0c0c0e;
-            box-shadow: 0 0 10px #00f2ff;
-        }
-        .shop-content {
-            width: 90%;
-            max-height: 320px;
+
+        .info-text { color: #fff; font-size: 16px; margin: 8px 0; font-family: monospace; }
+
+        /* Macera Seviye Paneli */
+        .grid-container {
+            width: 100%;
+            max-height: 45%;
             overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .shop-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
             padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+        }
+        .level-card {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #555;
+            color: #555;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: not-allowed;
+            outline: none;
+            transition: transform 0.08s ease;
+        }
+        .level-card.unlocked { border-color: #39ff14; color: #39ff14; cursor: pointer; }
+        .level-card.unlocked:active { 
+            background: rgba(57, 255, 20, 0.2); 
+            box-shadow: 0 0 15px #39ff14;
+            transform: scale(0.92); 
+        }
+
+        /* Mağaza Sekme Yapısı */
+        .shop-tabs { display: flex; width: 100%; max-width: 280px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 10px; background: transparent; border: 1px solid #555; color: #aaa; font-weight: bold; text-align: center; cursor: pointer; outline: none; }
+        .tab-btn.active { border-color: #00f2ff; color: #00f2ff; background: rgba(0,242,255,0.1); }
+        
+        .shop-grid {
+            width: 100%;
+            max-height: 45%;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 5px;
+            margin-bottom: 15px;
         }
         .shop-item {
-            position: relative;
-            width: 75px;
-            height: 75px;
-            border: 3px solid #222;
-            border-radius: 12px;
-            cursor: pointer;
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            font-size: 0.75rem;
-            font-weight: bold;
-            color: #fff;
-            background: #151518;
+            justify-content: center;
+            background: rgba(255,255,255,0.02);
+            cursor: pointer;
+            outline: none;
+            transition: transform 0.08s ease, box-shadow 0.08s ease;
         }
-        .shop-item.active {
-            border-color: #00f2ff;
-            box-shadow: 0 0 15px #00f2ff;
+        .shop-item:active {
+            transform: scale(0.96);
+            box-shadow: 0 0 12px rgba(255,255,255,0.1);
         }
-        .shop-item.locked::after {
-            content: attr(data-price) " 🪙";
-            position: absolute;
-            bottom: -18px;
-            font-size: 0.7rem;
-            color: #ffaa00;
-        }
-        .shop-item.purchased::after {
-            content: "AÇIK";
-            position: absolute;
-            bottom: -18px;
-            font-size: 0.65rem;
-            color: #39ff14;
-        }
+        .shop-item.equipped { border-color: #39ff14; box-shadow: 0 0 10px rgba(57,255,20,0.2); }
+        .shop-item.equipped:active { box-shadow: 0 0 18px #39ff14; }
     </style>
 </head>
 <body>
 
+    <div id="splashScreen">
+        <div class="splash-content">
+            <div class="splash-logo">HiGames</div>
+            <div class="splash-sub">Developed by Halil İbrahim Üzer</div>
+            <div class="splash-loader-container">
+                <div class="splash-loader-bar"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="gameContainer">
         <div id="hud">
-            <div id="liveScore">Skor: 0</div>
-            <div id="liveCoins">🪙 0</div>
+            <div id="liveScore" class="hud-text">Skor: 0</div>
+            <div id="liveCoins" class="hud-text">🪙 0</div>
         </div>
 
         <canvas id="gameCanvas"></canvas>
 
-        <div id="mainMenu" class="ui-screen">
-            <div id="menuStats" style="text-align: center; margin-bottom: 10px;">
-                <div id="menuBest" style="color: #00f2ff; font-weight: bold; text-shadow: 0 0 10px #00f2ff; font-size: 1.2rem; margin-bottom: 5px;">REKOR: 0</div>
-                <div id="menuCoins" style="color: #ffaa00; font-weight: bold; text-shadow: 0 0 10px #ffaa00; font-size: 1.1rem;">BAKİYE: 🪙 0</div>
-            </div>
-            <h1>Neon Climb</h1>
-            <button id="playMenuBtn">SONSUZ MOD</button>
-            <button id="adventureMenuBtn" class="adventure-btn">MACERA MODU</button>
-            <button id="shopBtn" class="secondary">MARKET</button>
-        </div>
-
-        <div id="adventureMenu" class="ui-screen hidden">
-            <h1 style="font-size: 2.2rem; color: #ffaa00; text-shadow: 0 0 15px #ffaa00;">BÖLÜMLER</h1>
-            <div class="level-container">
-                <div id="levelGrid" class="level-grid"></div>
-            </div>
-            <button id="backFromAdventureBtn" class="secondary">GERİ DÖN</button>
-        </div>
-
-        <div id="difficultyMenu" class="ui-screen hidden">
-            <h1 style="font-size: 2.2rem; color: #00f2ff; text-shadow: 0 0 15px #00f2ff;">ZORLUK SEÇ</h1>
-            <button id="easyBtn" class="easy-btn">KOLAY</button>
-            <button id="normalBtn" class="normal-btn">ORTA</button>
-            <button id="hardBtn" class="hard-btn">ZOR</button>
-            <button id="backToMainBtn" class="secondary" style="margin-top: 15px;">GERİ DÖN</button>
-        </div>
-
-        <div id="gameOverMenu" class="ui-screen hidden">
-            <h1 id="gameOverTitle" style="text-shadow: 0 0 15px #ff0055; color: #ff0055;">ELENDİN!</h1>
-            <div id="finalScore" class="score-text">Skor: 0</div>
-            <div id="gainedCoins" class="meta-text">Kazanılan: +🪙 0</div>
-            <button id="restartBtn">TEKRAR OYNA</button>
-            <button id="toMenuBtn" class="secondary">ANA MENÜ</button>
-        </div>
-
-        <div id="shopMenu" class="ui-screen hidden">
-            <h1>MARKET</h1>
-            <div id="shopBalance" style="color: #ffaa00; font-weight: bold; margin-bottom: 15px;">Bakiye: 🪙 0</div>
+        <div id="mainMenu" class="menu-layer">
+            <h1>NEON CLIMB</h1>
+            <div class="sub-title">Yüksek Tırmanış Başlıyor</div>
             
+            <div id="menuBest" class="info-text" style="color: #00f2ff;">REKOR: 0</div>
+            <div id="menuCoins" class="info-text" style="color: #ffd700; margin-bottom: 25px;">BAKİYE: 🪙 0</div>
+
+            <button id="playMenuBtn" class="btn">SONSUZ MOD</button>
+            <button id="adventureMenuBtn" class="btn btn-success">MACERA MODU (50 LVL)</button>
+            <button id="shopBtn" class="btn" style="border-color: #ffd700; color: #ffd700;">MAĞAZA</button>
+        </div>
+
+        <div id="difficultyMenu" class="menu-layer hidden">
+            <h1>SONSUZ MOD</h1>
+            <div class="sub-title">Zorluk Derecesi Seçin</div>
+
+            <button id="easyBtn" class="btn" style="border-color: #39ff14; color: #39ff14;">KOLAY</button>
+            <button id="normalBtn" class="btn">NORMAL</button>
+            <button id="hardBtn" class="btn btn-danger">ZOR</button>
+            
+            <button id="backToMainBtn" class="btn" style="margin-top: 25px; border-color: #888; color: #888;">GERİ DÖN</button>
+        </div>
+
+        <div id="adventureMenu" class="menu-layer hidden">
+            <h1>MACERA MODU</h1>
+            <div class="sub-title">Bir Bölüm Seçin</div>
+
+            <div id="adventureGrid" class="grid-container"></div>
+
+            <button id="backFromAdventureBtn" class="btn" style="border-color: #888; color: #888;">ANA MENÜ</button>
+        </div>
+
+        <div id="shopMenu" class="menu-layer hidden">
+            <h1>NEON SHOP</h1>
+            <div id="shopBalance" class="sub-title" style="color: #ffd700;">Bakiye: 🪙 0</div>
+
             <div class="shop-tabs">
-                <button id="tabCubes" class="tab-btn active">KÜPLER</button>
-                <button id="tabDecors" class="tab-btn">DEKORLAR</button>
+                <div id="tabCubes" class="tab-btn active">KÜPLER</div>
+                <div id="tabDecors" class="tab-btn">TEMALAR</div>
             </div>
 
-            <div class="shop-content">
-                <div id="cubesGrid" class="shop-grid"></div>
-                <div id="decorsGrid" class="shop-grid hidden"></div>
-            </div>
-            <button id="backToMenuBtn" style="margin-top: 15px;">GERİ DÖN</button>
+            <div id="cubesGrid" class="shop-grid"></div>
+            <div id="decorsGrid" class="shop-grid hidden"></div>
+
+            <button id="backToMenuBtn" class="btn" style="border-color: #888; color: #888;">ANA MENÜ</button>
+        </div>
+
+        <div id="gameOverMenu" class="menu-layer hidden">
+            <h1 id="gameOverTitle">ELENDİN!</h1>
+            
+            <div id="finalScore" class="info-text" style="font-size: 20px; margin-top: 15px;">Skor: 0</div>
+            <div id="gainedCoins" class="info-text" style="color: #ffd700; font-size: 18px; margin-bottom: 30px;">Kazanılan: +🪙 0</div>
+
+            <button id="restartBtn" class="btn btn-success">YENİDEN DENE</button>
+            <button id="toMenuBtn" class="btn">ANA MENÜ</button>
         </div>
     </div>
 
     <script src="cubes_data.js"></script>
     <script src="decors_data.js"></script>
     <script src="shop.js"></script>
-    <script src="adventure.js"></script>
-    <script src="game.js"></script>
+    <script src="infinite-logic.js"></script>
+    <script src="infinite-view.js"></script>
+    <script src="adventure-logic.js"></script>
+    <script src="adventure-view.js"></script>
+
+    <script>
+        // 8. saniyede pürüzsüz solma (fade-out) ve hafif büyüme efekti tetiklenir
+        setTimeout(function() {
+            var splash = document.getElementById('splashScreen');
+            if (splash) {
+                splash.style.opacity = '0';
+                splash.style.transform = 'scale(1.05)';
+            }
+        }, 8000); 
+
+        // 10. saniyede katman tamamen yok edilir, ana menü pürüzsüzce oyuncuya kalır
+        setTimeout(function() {
+            var splash = document.getElementById('splashScreen');
+            if (splash) {
+                splash.style.display = 'none';
+            }
+        }, 10000); 
+    </script>
+
 </body>
 </html>

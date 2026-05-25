@@ -1,0 +1,95 @@
+/* --- SİNEMATİK AÇILIŞ EKRANI (SPLASH SCREEN) STİLLERİ --- */
+#splashScreen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #0c0c0e;
+    z-index: 100; /* Tüm oyun katmanlarının en üstünde açılması için */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 2s ease, transform 2s ease; /* 8-10. saniyeler arası pürüzsüz kaybolma */
+}
+
+.splash-content {
+    text-align: center;
+    width: 100%;
+    padding: 20px;
+}
+
+/* HiGames Logosu - Sert, Kalın ve Geometrik */
+.splash-logo {
+    font-family: 'Impact', 'Arial Black', sans-serif;
+    font-size: 54px;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: 5px;
+    margin-bottom: 4px;
+    opacity: 0;
+    /* Siber arıza efekti: 0.3. saniyede başlar, tam 2 saniye boyunca titrer */
+    animation: neonFlicker 2s ease-in-out 0.3s forwards;
+}
+
+/* Halil İbrahim Üzer İmzası - Kod Temalı, Minimalist ve İnce */
+.splash-sub {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.65);
+    letter-spacing: 2.5px;
+    opacity: 0;
+    margin-bottom: 45px;
+    /* Logo çaktıktan hemen sonra yumuşakça devreye girer */
+    animation: fadeInSignature 1.5s ease-out 2.3s forwards;
+}
+
+/* Yükleme Çubuğu Alanı */
+.splash-loader-container {
+    width: 55%;
+    max-width: 220px;
+    height: 3.5px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 2px;
+    margin: 0 auto;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeInSignature 1.5s ease-out 2.3s forwards;
+}
+
+/* Küpün O Can Alıcı Turkuaz Neon Lazer Çizgisi */
+.splash-loader-bar {
+    width: 0%;
+    height: 100%;
+    background: #00f2ff;
+    box-shadow: 0 0 15px #00f2ff, 0 0 5px #00f2ff;
+    /* 3. saniyeden 8. saniyeye kadar (5 saniye boyunca) jilet gibi dolar */
+    animation: startLoading 5s cubic-bezier(0.4, 0, 0.2, 1) 3s forwards;
+}
+
+/* --- GELİŞMİŞ SİBER NEON ANİMASYONLARI --- */
+@keyframes neonFlicker {
+    0% { opacity: 0; text-shadow: none; }
+    4% { opacity: 1; text-shadow: 0 0 20px #00f2ff, 0 0 8px #00f2ff; }
+    8% { opacity: 0; text-shadow: none; }
+    12% { opacity: 1; text-shadow: 0 0 20px #00f2ff, 0 0 8px #00f2ff; }
+    16% { opacity: 0; text-shadow: none; }
+    22% { opacity: 1; text-shadow: 0 0 30px #00f2ff, 0 0 15px #00f2ff, 0 0 4px #00f2ff; }
+    26% { opacity: 0.2; text-shadow: none; }
+    32% { opacity: 1; text-shadow: 0 0 30px #00f2ff, 0 0 15px #00f2ff, 0 0 4px #00f2ff; }
+    75% { text-shadow: 0 0 30px #00f2ff, 0 0 15px #00f2ff, 0 0 4px #00f2ff; }
+    /* Neon Lambanın Şarj Olma Titreşimi (Pulse) */
+    88% { text-shadow: 0 0 20px #00f2ff, 0 0 10px #00f2ff; }
+    100% { opacity: 1; text-shadow: 0 0 35px #00f2ff, 0 0 18px #00f2ff, 0 0 6px #00f2ff; }
+}
+
+@keyframes fadeInSignature {
+    0% { opacity: 0; transform: translateY(3px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes startLoading {
+    0% { width: 0%; }
+    100% { width: 100%; }
+}
