@@ -75,6 +75,7 @@ function adventureGameLoop() {
 // --- 50 BÖLÜMLÜK SEÇİM EKRANINI DİNAMİK OLUŞTURMA MOTORU ---
 function buildAdventureGrid() {
     const grid = document.getElementById('adventureGrid');
+    if (!grid) return;
     grid.innerHTML = ''; // Eski butonları temizle
     
     for (let i = 1; i <= 50; i++) {
@@ -86,7 +87,13 @@ function buildAdventureGrid() {
         if (i <= currentLevel) {
             card.classList.add('unlocked');
             card.addEventListener('click', () => {
+                initAudio();
+                selectedLevel = i;
+                gameMode = 'ADVENTURE';
+                gameState = 'PLAYING';
+                document.getElementById('adventureMenu').classList.add('hidden');
                 startAdventureLevel(i);
+                if (!adventureLoopStarted) { adventureGameLoop(); adventureLoopStarted = true; }
             });
         } else {
             // Kilitli bölümlere asma kilit emojisi koyalım

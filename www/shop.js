@@ -1,5 +1,11 @@
 // shop.js - Ortak Hafıza, Dinamik Mağaza ve Arayüz Yönetim Merkezi
 
+// --- GÜVENLİ SES BAŞLATICI EMÜLATÖRÜ (initAudio Kilitlenme Hatasını Çözer) ---
+function initAudio() {
+    // İleride ses kütüphanesi eklediğinde burası dolacak, şimdilik butonları patlatmasın diye boş bırakıldı.
+    console.log("HiGames Ses Sistemi Aktif.");
+}
+
 // --- 1. GLOBAL PARAMETRELER VE ZORLUK AYARLARI (TURNUVA STANDARTI) ---
 const DIFFICULTY_SETTINGS = {
     'EASY':   { startSpeed: 3.5, acceleration: 0.0002, minGap: 200, maxGap: 320 },
@@ -38,6 +44,7 @@ let matchCoins = 0;
 let worldOffset = 0;
 let gameSpeed = 4.5;
 let loopStarted = false;
+let adventureLoopStarted = false; // Macera için ayrı döngü kontrolü
 let adventureCurrentSpeed = 4.5;
 
 const WALL_LEFT = 35;
@@ -54,6 +61,8 @@ function updateHUD() {
     const scoreDiv = document.getElementById('liveScore');
     const coinsDiv = document.getElementById('liveCoins');
     
+    if (!scoreDiv || !coinsDiv) return;
+
     if (gameMode === 'INFINITE') {
         scoreDiv.innerText = 'Skor: ' + score;
         coinsDiv.innerText = '🪙 ' + matchCoins;
@@ -91,7 +100,7 @@ function drawDecors() {
         ctx.shadowBlur = 10; ctx.shadowColor = '#00f2ff';
         ctx.strokeStyle = 'rgba(0, 242, 255, 0.4)'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.moveTo(WALL_LEFT, 0); ctx.lineTo(WALL_LEFT, canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(WALL_RIGHT(), 0); ctx.lineTo(WALL_RIGHT(), canvas.height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(WALL_RIGHT(), 0); ctx.lineTo(WALL_RIGHT(), canvas.height); stroke();
     } 
     else if (currentDecor === 'matrix') {
         ctx.fillStyle = 'rgba(57, 255, 20, 0.15)'; ctx.font = '10px monospace';
@@ -116,7 +125,6 @@ function buildShopGrids() {
     const decorsGrid = document.getElementById('decorsGrid');
     cubesGrid.innerHTML = ''; decorsGrid.innerHTML = '';
 
-    // Dış dosyadaki veri tabanı dizisi var mı kontrol et ve döngüye sok
     if (typeof CUBES_DATA !== 'undefined') {
         CUBES_DATA.forEach(item => {
             const div = document.createElement('div');
@@ -133,7 +141,6 @@ function buildShopGrids() {
         });
     }
 
-    // Dış dosyadaki dekor dizisi var mı kontrol et ve döngüye sok
     if (typeof DECORS_DATA !== 'undefined') {
         DECORS_DATA.forEach(item => {
             const div = document.createElement('div');
@@ -150,7 +157,6 @@ function buildShopGrids() {
     }
 }
 
-// Dinamik Satın Alma ve Ekipman Değiştirme Mantığı
 function handleShopClick(item, type) {
     initAudio();
     let isUnlocked = unlockedItems.includes(item.id);
@@ -210,8 +216,14 @@ document.getElementById('tabDecors').addEventListener('click', () => {
     document.getElementById('decorsGrid').classList.remove('hidden'); document.getElementById('cubesGrid').classList.add('hidden');
 });
 
-// İlk açılışta verileri senkronize etme tetikleyicisi
+// İlk açılışta verileri ve Canvas kararlılığını senkronize etme tetikleyicisi
 window.addEventListener('DOMContentLoaded', () => {
+    const canvasObj = document.getElementById('gameCanvas');
+    if (canvasObj) {
+        // Ekran koruyucu güvenliği için boyut ataması yapılıyor
+        canvasObj.width = canvasObj.parentElement.clientWidth || 480;
+        canvasObj.height = canvasObj.parentElement.clientHeight || 800;
+    }
     syncPlayerSkin();
     updateMenuUI();
     updateHUD();
