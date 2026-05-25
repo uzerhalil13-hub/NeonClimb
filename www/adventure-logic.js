@@ -1,185 +1,215 @@
-// adventure-logic.js - Macera Modu Saf Fizik ve Akıllı Para Hesaplama Beyni
+// adventure-logic.js - Macera Modu Matematiksel Akış ve Fizik Merkezi
 
-class AdventureObstacle {
+class AdvObstacle {
     constructor(relativeY) {
         this.relativeY = relativeY;
-        this.width = 30;
-        this.height = 20;
-        
-        let chosenSide = Math.random() > 0.5 ? 'LEFT' : 'RIGHT';
-        if (chosenSide === 'LEFT') {
-            if (consecutiveLeftCount >= 3) { chosenSide = 'RIGHT'; consecutiveLeftCount = 0; consecutiveRightCount = 1; }
-            else { consecutiveLeftCount++; consecutiveRightCount = 0; }
-        } else {
-            if (consecutiveRightCount >= 3) { chosenSide = 'LEFT'; consecutiveRightCount = 0; consecutiveLeftCount = 1; }
-            else { consecutiveRightCount++; consecutiveLeftCount = 0; }
-        }
-        this.side = chosenSide;
+        this.width = 35; this.height = 22;
+        this.side = Math.random() > 0.5 ? 'LEFT' : 'RIGHT';
     }
     getRealY() { return this.relativeY + worldOffset; }
 }
 
-class AdventureCoin {
+class AdvCoin {
     constructor(relativeY, side) {
         this.relativeY = relativeY;
-        this.size = 14;
         this.side = side;
+        this.size = 14;
         this.collected = false;
-        this.x = (this.side === 'LEFT') ? WALL_LEFT + 25 : WALL_RIGHT() - 25;
+        // Paranın yapışık duracağı x koordinatı
+        this.x = (side === 'LEFT') ? WALL_LEFT + 20 : WALL_RIGHT() - 20;
     }
     getRealY() { return this.relativeY + worldOffset; }
 }
 
+// Seviye Görev Havuzu (Rastgele Dağıtılmış Hedefler)
+let advObstacles = [];
+let advCoins = [];
+let advNextObstacleY = -250;
+let advNextCoinY = -350;
+
+let selectedLevel = 1;
+let levelTargetDistance = 0; // Metre hedefi
+let levelTargetCoins = 0;    // Para toplama hedefi
+let currentDistanceMeters = 0;
+
 function startAdventureLevel(levelNum) {
-    initAudio();
-    selectedLevel = levelNum;
     gameMode = 'ADVENTURE';
     gameState = 'PLAYING';
+    selectedLevel = levelNum;
     
-    score = 0; 
-    matchCoins = 0; 
+    score = 0; // Bu modda score=toplanan para görevini üstlenebilir
+    matchCoins = 0;
     worldOffset = 0;
-    consecutiveLeftCount = 0; 
-    consecutiveRightCount = 0;
-    obstacles = []; 
-    coins = [];
-    nextObstacleY = -200; 
-    nextCoinY = -300;
+    currentDistanceMeters = 0;
     
-    if (typeof DIFFICULTY_SETTINGS !== 'undefined' && DIFFICULTY_SETTINGS['NORMAL']) {
-        adventureCurrentSpeed = DIFFICULTY_SETTINGS['NORMAL'].startSpeed; 
+    advObstacles = [];
+    advCoins = [];
+    advNextObstacleY = -250;
+    advNextCoinY = -350;
+
+    // Macera modu standart ORTA zorluk hız parametrelerini kullanır
+    gameSpeed = DIFFICULTY_SETTINGS['NORMAL'].startSpeed;
+
+    // Dinamik Rastgele Hedef Şeması Belirleme
+    let seed = (levelNum * 77) % 3;
+    if (seed === 0) {
+        levelTargetDistance = 30 + (levelNum * 4); // Sadece Mesafe Görevi
+        levelTargetCoins = 0;
+    } else if (seed === 1) {
+        levelTargetDistance = 0; 
+        levelTargetCoins = 5 + Math.floor(levelNum * 0.6); // Sadece Para Görevi
     } else {
-        adventureCurrentSpeed = 4.5;
+        levelTargetDistance = 20 + (levelNum * 3); // Hibrit Görev (Hem mesafe hem para)
+        levelTargetCoins = 3 + Math.floor(levelNum * 0.4);
     }
-    
-    adventureTargetScore = 20 + (levelNum * 5); 
-    
-    if (player && typeof player.init === 'function') {
-        player.init(); 
-    }
-    updateHUD();
-    
-    document.getElementById('mainMenu').classList.add('hidden');
-    document.getElementById('adventureMenu').classList.add('hidden');
-    document.getElementById('gameOverMenu').classList.add('hidden');
-    
-    if (!adventureLoopStarted) {
-        adventureLoopStarted = true;
-        if (typeof adventureGameLoop === 'function') adventureGameLoop();
-    }
+
+    player.init();
+    document.getElementById('gameHUD').classList.remove('hidden');
+    updateAdventureHUD();
 }
 
 function updateAdventureLogic() {
     if (gameState !== 'PLAYING' || gameMode !== 'ADVENTURE') return;
 
-    let normalSettings = (typeof DIFFICULTY_SETTINGS !== 'undefined') ? DIFFICULTY_SETTINGS['NORMAL'] : { acceleration: 0.0005 };
+    // Hızlanma dengesi standart ORTA katsayısı
+    worldOffset += gameSpeed;
+    gameSpeed += DIFFICULTY_SETTINGS['NORMAL'].accel;
 
-    worldOffset += adventureCurrentSpeed;
-    adventureCurrentSpeed += normalSettings.acceleration || 0.0005; 
+    // 100 Piksel = 1 Metre formülü
+    currentDistanceMeters = Math.floor(worldOffset / 100);
+
+    updateAdventureHUD();
+
+    // KAZANMA KONTROLÜ (Hedeflere ulaşıldı mı?)
+    let distWin = (levelTargetDistance === 0 || currentDistanceMeters >= levelTargetDistance);
+    let coinWin = (levelTargetCoins === 0 || matchCoins >= levelTargetCoins);
     
-    score = Math.floor(worldOffset / 160);
-    
-    if (score >= adventureTargetScore) {
+    if (distWin && coinWin) {
         triggerAdventureWin();
         return;
     }
 
-    let progressRatio = Math.min((selectedLevel - 1) / 49, 1);
-    let minGap = 160 - (progressRatio * 30); 
-    let maxGap = 280 - (progressRatio * 50); 
-
-    let cHeight = (canvas && canvas.height) ? canvas.height : 800;
-
-    while (nextObstacleY > -worldOffset - cHeight) {
-        obstacles.push(new AdventureObstacle(nextObstacleY));
-        let gap = Math.random() * (maxGap - minGap) + minGap;
-        nextObstacleY -= gap; 
+    // Standart Engel Dağıtımı
+    while (advNextObstacleY > -worldOffset - canvas.height) {
+        advObstacles.push(new AdvObstacle(advNextObstacleY));
+        advNextObstacleY -= (180 + Math.random() * 120);
     }
 
-    while (nextCoinY > -worldOffset - cHeight) {
-        let chosenSide = Math.random() > 0.5 ? 'LEFT' : 'RIGHT';
-        let rand = Math.random();
+    // Matematiksel Grup Para Dağıtım Motoru
+    while (advNextCoinY > -worldOffset - canvas.height) {
+        let randGroup = Math.random();
+        let side = Math.random() > 0.5 ? 'LEFT' : 'RIGHT';
 
-        if (rand < 0.30) {
-            for (let i = 0; i < 5; i++) {
-                coins.push(new AdventureCoin(nextCoinY - (i * 45), chosenSide));
+        if (randGroup < 0.15) {
+            // %15 İhtimalle 4'lü Grup
+            for (let i = 0; i < 4; i++) {
+                advCoins.push(new AdvCoin(advNextCoinY - (i * 35), side));
             }
-            nextCoinY -= 450; 
-        } else if (rand < 0.75) {
-            coins.push(new AdventureCoin(nextCoinY, chosenSide));
-            nextCoinY -= 200;
+            advNextCoinY -= 300;
+        } else if (randGroup < 0.45) {
+            // %30 İhtimalle 3'lü Grup (0.15 + 0.30 = 0.45)
+            for (let i = 0; i < 3; i++) {
+                advCoins.push(new AdvCoin(advNextCoinY - (i * 35), side));
+            }
+            advNextCoinY -= 240;
         } else {
-            nextCoinY -= 150;
+            // Geri kalan %55 İhtimalle Makul Mesafeli Tekli Paralar
+            advCoins.push(new AdvCoin(advNextCoinY, side));
+            advNextCoinY -= (120 + Math.random() * 60);
         }
     }
 
-    if (player && typeof player.update === 'function') {
-        player.update(); 
-    }
-    checkAdventureCollisions();
-    
-    obstacles = obstacles.filter(obs => obs.getRealY() < cHeight + 100);
-    coins = coins.filter(c => c.getRealY() < cHeight + 100);
-}
+    player.update();
 
-function checkAdventureCollisions() {
-    if (!player) return;
-
-    let px = player.x - player.size / 2; 
+    // Çarpışma Testleri
+    let px = player.x - player.size / 2;
     let py = player.y - player.size / 2;
-    let pw = player.size; 
-    let ph = player.size;
-    
-    for (let obs of obstacles) {
+    let pSize = player.size;
+
+    // Engel Çarpışması
+    for (let obs of advObstacles) {
         let oy = obs.getRealY();
         if (obs.side === 'LEFT') {
-            if (px < WALL_LEFT + obs.width && px + pw > WALL_LEFT && py + ph > oy && py < oy + obs.height) { triggerAdventureGameOver(); return; }
+            if (px < WALL_LEFT + obs.width && py + pSize > oy && py < oy + obs.height) {
+                triggerAdventureGameOver(); return;
+            }
         } else {
-            if (px + pw > WALL_RIGHT() - obs.width && px < WALL_RIGHT() && py + ph > oy && py < oy + obs.height) { triggerAdventureGameOver(); return; }
-        }
-    }
-
-    for (let coin of coins) {
-        if (!coin.collected) {
-            let cy = coin.getRealY();
-            let distX = Math.abs(player.x - coin.x);
-            let distY = Math.abs(player.y - cy);
-            
-            if (distX < (player.size / 2 + coin.size / 2) && distY < (player.size / 2 + coin.size / 2)) {
-                coin.collected = true;
-                matchCoins++;
-                updateHUD();
+            if (px + pSize > WALL_RIGHT() - obs.width && py + pSize > oy && py < oy + obs.height) {
+                triggerAdventureGameOver(); return;
             }
         }
     }
+
+    // Para Toplama Çarpışması
+    for (let coin of advCoins) {
+        if (!coin.collected) {
+            let cy = coin.getRealY();
+            if (Math.abs(player.x - coin.x) < (pSize/2 + coin.size/2) && Math.abs(player.y - cy) < (pSize/2 + coin.size/2)) {
+                coin.collected = true;
+                matchCoins++;
+            }
+        }
+    }
+
+    advObstacles = advObstacles.filter(obs => obs.getRealY() < canvas.height + 50);
+    advCoins = advCoins.filter(c => c.getRealY() < canvas.height + 50);
+}
+
+function updateAdventureHUD() {
+    let rawDistStr = currentDistanceMeters + "m";
+    if (levelTargetDistance > 0) rawDistStr += " / " + levelTargetDistance + "m";
+    
+    let rawCoinStr = "🪙 " + matchCoins;
+    if (levelTargetCoins > 0) rawCoinStr += " / " + levelTargetCoins;
+
+    document.getElementById('hudLeft').innerText = rawDistStr;
+    document.getElementById('hudRight').innerText = rawCoinStr;
 }
 
 function triggerAdventureGameOver() {
     gameState = 'GAMEOVER';
     totalCoins += matchCoins;
     saveGameData();
+
+    document.getElementById('gameOverTitle').innerText = "ELENDİN!";
+    document.getElementById('gameOverTitle').style.color = "#ff0055";
+    document.getElementById('finalScore').innerText = "Gidilen Mesafe: " + currentDistanceMeters + "m";
+    document.getElementById('finalTarget').classList.add('hidden');
+    document.getElementById('gainedCoins').innerText = "Toplanan Bakiye: +🪙 " + matchCoins;
     
-    const title = document.getElementById('gameOverTitle');
-    title.innerText = 'ELENDİN!'; title.style.color = '#ff0055'; title.style.textShadow = '0 0 15px #ff0055';
-    document.getElementById('finalScore').innerText = 'Skor: ' + score + ' / ' + adventureTargetScore;
-    document.getElementById('gainedCoins').innerText = 'Kazanılan: +🪙 ' + matchCoins;
+    document.getElementById('gameHUD').classList.add('hidden');
     document.getElementById('gameOverMenu').classList.remove('hidden');
 }
 
 function triggerAdventureWin() {
     gameState = 'WIN';
-    let bonus = matchCoins + 10; 
-    totalCoins += bonus;
-    
-    if (selectedLevel === currentLevel && currentLevel < 50) {
-        currentLevel++;
+    let reward = matchCoins + 5; // Her bölüm sonu 5 para hediye
+    let isAllFinished = false;
+
+    if (selectedLevel === currentLevel) {
+        if (currentLevel < 50) {
+            currentLevel++;
+        } else if (currentLevel === 50) {
+            reward += 100; // 50 Seviye bitirme ödülü +100 Para
+            isAllFinished = true;
+        }
     }
-    saveAdventureData();
+    
+    totalCoins += reward;
     saveGameData();
 
     const title = document.getElementById('gameOverTitle');
-    title.innerText = 'BÖLÜM GEÇİLDİ!'; title.style.color = '#39ff14'; title.style.textShadow = '0 0 15px #39ff14';
-    document.getElementById('finalScore').innerText = 'Skor: ' + score + ' / ' + adventureTargetScore;
-    document.getElementById('gainedCoins').innerText = 'Toplam Kazanç: +🪙 ' + bonus + ' (10 Bölüm Bonusu!)';
+    if (isAllFinished) {
+        title.innerText = "MACERA BİTTİ!";
+        title.style.color = "#ffd700";
+        document.getElementById('gainedCoins').innerText = "BÜYÜK ÖDÜL: +🪙 " + reward + "\nModu Tamamen Bitirdiniz, Tebrikler!";
+    } else {
+        title.innerText = "BÖLÜM GEÇİLDİ!";
+        title.style.color = "#39ff14";
+        document.getElementById('gainedCoins').innerText = "Bölüm Ödülü: +🪙 " + reward + " (5 Hediye!)";
+    }
+
+    document.getElementById('finalScore').innerText = "Skor: " + currentDistanceMeters + "m / Toplanan: 🪙 " + matchCoins;
+    document.getElementById('gameHUD').classList.add('hidden');
     document.getElementById('gameOverMenu').classList.remove('hidden');
 }

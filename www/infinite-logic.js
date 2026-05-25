@@ -1,119 +1,109 @@
-// infinite-logic.js - Sonsuz Mod Saf Fizik ve Hesaplama Beyni
+// infinite-logic.js - Normal Mod Saf Hesaplama ve Engel Motoru
 
 class InfiniteObstacle {
     constructor(relativeY) {
         this.relativeY = relativeY;
-        this.width = 30;
-        this.height = 20;
-        
-        let chosenSide = Math.random() > 0.5 ? 'LEFT' : 'RIGHT';
-        if (chosenSide === 'LEFT') {
-            if (consecutiveLeftCount >= 3) { chosenSide = 'RIGHT'; consecutiveLeftCount = 0; consecutiveRightCount = 1; }
-            else { consecutiveLeftCount++; consecutiveRightCount = 0; }
-        } else {
-            if (consecutiveRightCount >= 3) { chosenSide = 'LEFT'; consecutiveRightCount = 0; consecutiveLeftCount = 1; }
-            else { consecutiveRightCount++; consecutiveLeftCount = 0; }
-        }
-        this.side = chosenSide;
+        this.width = 35;
+        this.height = 22;
+        // Engeller iki duvara rastgele ama homojen dağılır
+        this.side = Math.random() > 0.5 ? 'LEFT' : 'RIGHT';
     }
-    getRealY() { return this.relativeY + worldOffset; }
+    getRealY() {
+        return this.relativeY + worldOffset;
+    }
 }
 
-function startInfiniteGame(diff) {
-    initAudio();
-    selectedDifficulty = diff;
+// Global engel havuzu
+let infiniteObstacles = [];
+let infNextObstacleY = -250;
+
+function startNormalGame(difficulty) {
     gameMode = 'INFINITE';
     gameState = 'PLAYING';
+    selectedDifficulty = difficulty;
     
-    score = 0; 
-    matchCoins = 0; 
+    score = 0;
+    matchCoins = 0;
     worldOffset = 0;
-    consecutiveLeftCount = 0; 
-    consecutiveRightCount = 0;
-    obstacles = []; 
-    nextObstacleY = -200; 
+    infiniteObstacles = [];
+    infNextObstacleY = -250;
     
-    if (typeof DIFFICULTY_SETTINGS !== 'undefined' && DIFFICULTY_SETTINGS[selectedDifficulty]) {
-        gameSpeed = DIFFICULTY_SETTINGS[selectedDifficulty].startSpeed; 
-    } else {
-        gameSpeed = 4.5; 
-    }
+    gameSpeed = DIFFICULTY_SETTINGS[difficulty].startSpeed;
+    player.init();
     
-    if (player && typeof player.init === 'function') {
-        player.init(); 
-    }
-    
-    updateHUD();
-    
-    document.getElementById('mainMenu').classList.add('hidden');
-    document.getElementById('difficultyMenu').classList.add('hidden');
-    document.getElementById('gameOverMenu').classList.add('hidden');
-    
-    if (!loopStarted) {
-        loopStarted = true;
-        if (typeof infiniteGameLoop === 'function') infiniteGameLoop();
-    }
+    document.getElementById('gameHUD').classList.remove('hidden');
+    updateInfiniteHUD();
 }
 
 function updateInfiniteLogic() {
     if (gameState !== 'PLAYING' || gameMode !== 'INFINITE') return;
 
-    let diffSetting = (typeof DIFFICULTY_SETTINGS !== 'undefined') ? DIFFICULTY_SETTINGS[selectedDifficulty] : { startSpeed: 4.5, acceleration: 0.0005, minGap: 160, maxGap: 280 };
+    let settings = DIFFICULTY_SETTINGS[selectedDifficulty];
     
+    // Düzenli akan yol hesabı ve hızlanma katlanması
     worldOffset += gameSpeed;
-    gameSpeed += diffSetting.acceleration || 0.0005; 
+    gameSpeed += settings.accel;
+
+    // Skor hesaplama (Mesafe bazlı puanlama)
+    score = Math.floor(worldOffset / 150);
     
-    score = Math.floor(worldOffset / 160);
-    matchCoins = Math.floor(score / 5); 
-    updateHUD();
+    // Skora bağlı dengeli para kazanma formülü (Her 4 skorda 1 Coin)
+    matchCoins = Math.floor(score / 4);
+    
+    updateInfiniteHUD();
 
-    let cHeight = (canvas && canvas.height) ? canvas.height : 800;
-
-    while (nextObstacleY > -worldOffset - cHeight) {
-        obstacles.push(new InfiniteObstacle(nextObstacleY));
-        let gap = Math.random() * (diffSetting.maxGap - diffSetting.minGap) + diffSetting.minGap;
-        nextObstacleY -= gap; 
+    // Homojen engel üretim fabrikası
+    while (infNextObstacleY > -worldOffset - canvas.height) {
+        infiniteObstacles.push(new InfiniteObstacle(infNextObstacleY));
+        // Zorluğa göre engeller arası dikey mesafe daralır
+        let gap = 200 + Math.random() * 120;
+        if (selectedDifficulty === 'ZOR') gap = 150 + Math.random() * 90;
+        infNextObstacleY -= gap;
     }
 
-    if (player && typeof player.update === 'function') {
-        player.update(); 
-    }
+    player.update();
     
-    let px = player.x - player.size / 2; 
+    // Çarpışma Testi Fiziği
+    let px = player.x - player.size / 2;
     let py = player.y - player.size / 2;
-    let pw = player.size; 
-    let ph = player.size;
-    
-    for (let obs of obstacles) {
+    let pSize = player.size;
+
+    for (let obs of infiniteObstacles) {
         let oy = obs.getRealY();
         if (obs.side === 'LEFT') {
-            if (px < WALL_LEFT + obs.width && px + pw > WALL_LEFT && py + ph > oy && py < oy + obs.height) { 
-                triggerInfiniteGameOver(); 
-                return; 
+            if (px < WALL_LEFT + obs.width && py + pSize > oy && py < oy + obs.height) {
+                triggerInfiniteGameOver();
+                return;
             }
         } else {
-            if (px + pw > WALL_RIGHT() - obs.width && px < WALL_RIGHT() && py + ph > oy && py < oy + obs.height) { 
-                triggerInfiniteGameOver(); 
-                return; 
+            if (px + pSize > WALL_RIGHT() - obs.width && py + pSize > oy && py < oy + obs.height) {
+                triggerInfiniteGameOver();
+                return;
             }
         }
     }
-    
-    obstacles = obstacles.filter(obs => obs.getRealY() < cHeight + 100);
+
+    // Ekrandan çıkıp giden engelleri hafızadan sil
+    infiniteObstacles = infiniteObstacles.filter(obs => obs.getRealY() < canvas.height + 50);
+}
+
+function updateInfiniteHUD() {
+    document.getElementById('hudLeft').innerText = 'Skor: ' + score;
+    document.getElementById('hudRight').innerText = '🪙 ' + matchCoins;
 }
 
 function triggerInfiniteGameOver() {
     gameState = 'GAMEOVER';
     totalCoins += matchCoins;
-    if (score > highScore) { highScore = score; }
+    if (score > highScore) highScore = score;
     saveGameData();
-    
-    const title = document.getElementById('gameOverTitle');
-    title.innerText = 'ELENDİN!'; 
-    title.style.color = '#ff0055'; 
-    title.style.textShadow = '0 0 15px #ff0055';
 
-    document.getElementById('finalScore').innerText = 'Skor: ' + score;
-    document.getElementById('gainedCoins').innerText = 'Kazanılan: +🪙 ' + matchCoins;
+    document.getElementById('gameOverTitle').innerText = "ELENDİN!";
+    document.getElementById('gameOverTitle').style.color = "#ff0055";
+    document.getElementById('finalScore').innerText = "Skor: " + score;
+    document.getElementById('finalTarget').classList.add('hidden');
+    document.getElementById('gainedCoins').innerText = "Kazanılan: +🪙 " + matchCoins;
+    
+    document.getElementById('gameHUD').classList.add('hidden');
     document.getElementById('gameOverMenu').classList.remove('hidden');
 }
