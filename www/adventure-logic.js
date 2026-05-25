@@ -39,7 +39,7 @@ function startAdventureLevel(levelNum) {
     gameMode = 'ADVENTURE';
     gameState = 'PLAYING';
     
-    // Her bölüm senin istediğin gibi turnuva standardında, aynı değerlerle sıfırlanarak başlar
+    // Her bölüm turnuva standardında, aynı değerlerle sıfırlanarak başlar
     score = 0; 
     matchCoins = 0; 
     worldOffset = 0;
@@ -52,10 +52,17 @@ function startAdventureLevel(levelNum) {
     nextCoinY = -300;
     
     // Tüm bölümlerde normal modun hız ve ivme değerleri zorunlu kılınıyor
-    adventureCurrentSpeed = DIFFICULTY_SETTINGS['NORMAL'].startSpeed; 
+    if (typeof DIFFICULTY_SETTINGS !== 'undefined' && DIFFICULTY_SETTINGS['NORMAL']) {
+        adventureCurrentSpeed = DIFFICULTY_SETTINGS['NORMAL'].startSpeed; 
+    } else {
+        adventureCurrentSpeed = 4.5;
+    }
+    
     adventureTargetScore = 20 + (levelNum * 5); // Bölüm ilerledikçe hedef skor doğrusal artar
     
-    player.init(); 
+    if (typeof player !== 'undefined' && typeof player.init === 'function') {
+        player.init(); 
+    }
     updateHUD();
     
     // Menüleri kapat
@@ -63,9 +70,9 @@ function startAdventureLevel(levelNum) {
     document.getElementById('adventureMenu').classList.add('hidden');
     document.getElementById('gameOverMenu').classList.add('hidden');
     
-    if (!loopStarted) {
-        loopStarted = true;
-        adventureGameLoop();
+    if (!adventureLoopStarted) {
+        adventureLoopStarted = true;
+        if (typeof adventureGameLoop === 'function') adventureGameLoop();
     }
 }
 
@@ -73,9 +80,11 @@ function startAdventureLevel(levelNum) {
 function updateAdventureLogic() {
     if (gameState !== 'PLAYING' || gameMode !== 'ADVENTURE') return;
 
+    let normalSettings = (typeof DIFFICULTY_SETTINGS !== 'undefined') ? DIFFICULTY_SETTINGS['NORMAL'] : { acceleration: 0.0005 };
+
     // Normal mod ivmesiyle dünyayı kaydır
     worldOffset += adventureCurrentSpeed;
-    adventureCurrentSpeed += DIFFICULTY_SETTINGS['NORMAL'].acceleration; 
+    adventureCurrentSpeed += normalSettings.acceleration || 0.0005; 
     
     score = Math.floor(worldOffset / 160);
     
@@ -90,14 +99,16 @@ function updateAdventureLogic() {
     let minGap = 160 - (progressRatio * 30); 
     let maxGap = 280 - (progressRatio * 50); 
 
-    while (nextObstacleY > -worldOffset - canvas.height) {
+    let cHeight = (typeof canvas !== 'undefined' && canvas.height) ? canvas.height : 800;
+
+    while (nextObstacleY > -worldOffset - cHeight) {
         obstacles.push(new AdventureObstacle(nextObstacleY));
         let gap = Math.random() * (maxGap - minGap) + minGap;
         nextObstacleY -= gap; 
     }
 
     // --- AKILLI VE DENGELİ PARA ALGORİTMASI ---
-    while (nextCoinY > -worldOffset - canvas.height) {
+    while (nextCoinY > -worldOffset - cHeight) {
         let chosenSide = Math.random() > 0.5 ? 'LEFT' : 'RIGHT';
         let rand = Math.random();
 
@@ -106,33 +117,36 @@ function updateAdventureLogic() {
             for (let i = 0; i < 5; i++) {
                 coins.push(new AdventureCoin(nextCoinY - (i * 45), chosenSide));
             }
-            nextCoinY -= 450; // Zincirden sonra oyuncunun abartı toplamasını engellemek için geniş boşluk
+            nextCoinY -= 450; 
         } else if (rand < 0.75) {
-            // %45 Şansla: Oyuncuyu boğmayan tekli, şık, aralıklı paralar
+            // %45 Şansla: Oyuncuyu boğmayan tekli paralar
             coins.push(new AdventureCoin(nextCoinY, chosenSide));
             nextCoinY -= 200;
         } else {
-            // %25 Şansla: Boş geçilen güvenli mesafe adımı (Ekonomi Dengesi)
+            // %25 Şansla: Ekonomi Dengesi Boşluğu
             nextCoinY -= 150;
         }
     }
 
-    player.update(); 
+    if (typeof player !== 'undefined' && typeof player.update === 'function') {
+        player.update(); 
+    }
     checkAdventureCollisions();
     
-    // Temizlik filtreleri
-    obstacles = obstacles.filter(obs => obs.getRealY() < canvas.height + 100);
-    coins = coins.filter(c => c.getRealY() < canvas.height + 100);
+    let currentCanvasHeight = (typeof canvas !== 'undefined' && canvas.height) ? canvas.height : 800;
+    obstacles = obstacles.filter(obs => obs.getRealY() < currentCanvasHeight + 100);
+    coins = coins.filter(c => c.getRealY() < currentCanvasHeight + 100);
 }
 
 // Macera Modu Çarpışma ve Canlı Para Toplama Denetimi
 function checkAdventureCollisions() {
+    if (typeof player === 'undefined') return;
+
     let px = player.x - player.size / 2; 
     let py = player.y - player.size / 2;
     let pw = player.size; 
     let ph = player.size;
     
-    // Engel Çarpışması (Düz küp mantığı geçerli)
     for (let obs of obstacles) {
         let oy = obs.getRealY();
         if (obs.side === 'LEFT') {
@@ -142,7 +156,6 @@ function checkAdventureCollisions() {
         }
     }
 
-    // Canlı Para Toplama Çarpışması
     for (let coin of coins) {
         if (!coin.collected) {
             let cy = coin.getRealY();
@@ -152,7 +165,7 @@ function checkAdventureCollisions() {
             if (distX < (player.size / 2 + coin.size / 2) && distY < (player.size / 2 + coin.size / 2)) {
                 coin.collected = true;
                 matchCoins++;
-                playCoinSound();
+                if (typeof playCoinSound === 'function') playCoinSound();
                 updateHUD();
             }
         }
@@ -162,7 +175,7 @@ function checkAdventureCollisions() {
 // Macera elenme tetikleyicisi
 function triggerAdventureGameOver() {
     gameState = 'GAMEOVER';
-    playExplosionSound();
+    if (typeof playExplosionSound === 'function') playExplosionSound();
     totalCoins += matchCoins;
     saveGameData();
     
@@ -173,10 +186,10 @@ function triggerAdventureGameOver() {
     document.getElementById('gameOverMenu').classList.remove('hidden');
 }
 
-// Macera kazanma tetikleyicisi (+10 Seviye Bonusu Dahil!)
+// Macera kazanma tetikleyicisi
 function triggerAdventureWin() {
     gameState = 'WIN';
-    playWinSound();
+    if (typeof playWinSound === 'function') playWinSound();
     let bonus = matchCoins + 10; 
     totalCoins += bonus;
     
@@ -192,3 +205,7 @@ function triggerAdventureWin() {
     document.getElementById('gainedCoins').innerText = 'Toplam Kazanç: +🪙 ' + bonus + ' (10 Bölüm Bonusu!)';
     document.getElementById('gameOverMenu').classList.remove('hidden');
 }
+
+// Eksik Ses Emülatörleri (Kilitlenmeyi Önler)
+function playCoinSound() { console.log("Coin toplandı! +1"); }
+function playWinSound() { console.log("Tebrikler, bölüm geçildi!"); }
